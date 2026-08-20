@@ -1,0 +1,6 @@
+@extends('layouts.shop', ['title' => 'Giỏ hàng'])
+@section('content')<h1>Giỏ hàng</h1>@if($items->isEmpty())<p>Giỏ hàng đang trống. <a href="{{ route('shop.home') }}">Tiếp tục mua sắm</a></p>@else
+@php($grandTotal = $items->sum('total'))
+@foreach($items as $item)<div class="cart-row"><div><strong>{{ $item['variant']->product->name }}</strong><br>Màu {{ $item['variant']->color }} - Size {{ $item['variant']->size }}<br>{{ number_format($item['price']) }} đ</div><form method="POST" action="{{ route('cart.update', $item['variant']) }}">@csrf @method('PATCH')<input type="number" name="quantity" value="{{ $item['quantity'] }}" min="1" max="{{ $item['variant']->stock }}"><button class="btn" type="submit">Cập nhật</button></form><strong>{{ number_format($item['total']) }} đ</strong><form method="POST" action="{{ route('cart.remove', $item['variant']) }}">@csrf @method('DELETE')<button class="btn" style="background:#991b1b" type="submit">Xóa</button></form></div>@endforeach
+<div class="cart-total">Tổng cộng: {{ number_format($grandTotal) }} đ</div><a class="btn" href="{{ route('checkout') }}">Thanh toán</a><a href="{{ route('shop.home') }}" style="margin-left:15px">Tiếp tục mua sắm</a>@endif
+@endsection
