@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\CartItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -44,25 +45,97 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'gender' => ['nullable', 'in:Nam,Nữ,Khác'],
             'birth_date' => ['nullable', 'date', 'before:today'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/'],
+            'email' => ['required', 'email:rfc,dns', 'max:255'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
 
-        $user = User::create($data + ['role' => 'user']);
+        $data['email'] = strtolower($data['email']);
+        if (User::where('email', $data['email'])->exists()) {
+            return redirect()->route('password.request')
+                ->withErrors(['email' => 'Email này đã tồn tại. Bạn hãy dùng chức năng quên mật khẩu.']);
+        }
+
+        $otp = (string) random_int(100000, 999999);
+        $request->session()->put('registration', [
+            'data' => $data,
+            'otp' => $otp,
+            'expires_at' => now()->addMinutes(10)->timestamp,
+        ]);
+
+        try {
+            Mail::raw("Mã xác minh đăng ký tài khoản của bạn là: {$otp}. Mã có hiệu lực trong 10 phút.", function ($message) use ($data) {
+                $message->to($data['email'])->subject('Xác minh đăng ký tài khoản');
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+            $request->session()->forget('registration');
+
+            return back()->withErrors(['email' => 'Không thể gửi email xác minh. Bạn hãy kiểm tra lại email hoặc cấu hình SMTP.'])->withInput();
+        }
+
+        return redirect()->route('register.verify')->with('status', 'Mã xác minh đã được gửi đến email của bạn.');
+    }
+
+    public function showRegisterOtp()
+    {
+        abort_unless(session()->has('registration'), 404);
+
+        return view('auth.verify-register');
+    }
+
+    public function verifyRegistration(Request $request)
+    {
+        $registration = $request->session()->get('registration');
+        abort_unless($registration, 404);
+
+        $data = $request->validate(['otp' => ['required', 'digits:6']]);
+        if ($registration['otp'] !== $data['otp'] || now()->timestamp > $registration['expires_at']) {
+            return back()->withErrors(['otp' => 'Mã xác minh không đúng hoặc đã hết hạn.']);
+        }
+
+        if (User::where('email', $registration['data']['email'])->exists()) {
+            $request->session()->forget('registration');
+
+            return redirect()->route('password.request')
+                ->withErrors(['email' => 'Email này đã tồn tại. Bạn hãy dùng chức năng quên mật khẩu.']);
+        }
+
+        $user = User::create($registration['data'] + ['role' => 'user']);
+        $request->session()->forget('registration');
         Auth::login($user);
         $request->session()->regenerate();
+        $this->syncCartToUser($request, $user);
 
         return redirect()->route('home')->with('status', 'Đăng ký tài khoản thành công.');
     }
 
     public function logout(Request $request)
     {
+        if ($request->user()) {
+            $this->syncCartToUser($request, $request->user());
+        }
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    private function syncCartToUser(Request $request, User $user): void
+    {
+        foreach ($request->session()->get('cart', []) as $variantId => $quantity) {
+            $quantity = (int) $quantity;
+            if ($quantity < 1) {
+                continue;
+            }
+
+            $item = $user->cartItems()->firstOrNew(['product_variant_id' => $variantId]);
+            $item->quantity = $quantity;
+            $item->save();
+        }
+
+        $request->session()->put('cart', $user->cartItems()->pluck('quantity', 'product_variant_id')->all());
     }
 
     public function showForgotPassword()

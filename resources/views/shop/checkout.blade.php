@@ -4,6 +4,9 @@
 <p>Kiểm tra thông tin nhận hàng rồi xác nhận đặt hàng.</p>
 <form method="POST" action="{{ route('checkout.place') }}">
 	@csrf
+	@foreach(request()->input('selected_items', []) as $selectedId)
+		<input type="hidden" name="selected_items[]" value="{{ $selectedId }}">
+	@endforeach
 	<div class="field"><label>Họ và tên</label><input name="name" value="{{ old('name', auth()->user()?->name) }}" required></div>
 	<div class="field"><label>Số điện thoại</label><input name="phone" value="{{ old('phone', auth()->user()?->phone) }}" required></div>
 	<div class="field"><label>Địa chỉ nhận hàng</label><textarea name="address" rows="4" required>{{ old('address') }}</textarea></div>

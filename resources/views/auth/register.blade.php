@@ -4,7 +4,7 @@
 <form method="POST" action="{{ route('register.store') }}">@csrf
 <label>Họ và tên</label><input name="name" value="{{ old('name') }}" required>
 <div class="grid"><div><label>Giới tính</label><select name="gender"><option value="">Chọn</option><option>Nam</option><option>Nữ</option><option>Khác</option></select></div><div><label>Ngày sinh</label><input type="date" name="birth_date" value="{{ old('birth_date') }}"></div></div>
-<label>Số điện thoại</label><input name="phone" value="{{ old('phone') }}">
+<label>Số điện thoại</label><input name="phone" value="{{ old('phone') }}" placeholder="0912345678 hoặc +84912345678" pattern="^(0|\+84)(3|5|7|8|9)[0-9]{8}$" required>
 <label>Email</label><input type="email" name="email" value="{{ old('email') }}" required>
 <label>Mật khẩu</label><input type="password" name="password" required minlength="8"><label>Nhập lại mật khẩu</label><input type="password" name="password_confirmation" required>
 <button type="submit">Đăng ký</button></form><div class="links"><a href="{{ route('login') }}">Đã có tài khoản? Đăng nhập</a></div>

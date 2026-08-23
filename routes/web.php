@@ -10,11 +10,13 @@ use App\Http\Controllers\StorefrontController;
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
 
 Route::get('/cua-hang', [StorefrontController::class, 'home'])->name('shop.home');
+Route::get('/goi-y-san-pham', [StorefrontController::class, 'productSuggestions'])->name('shop.products.suggestions');
 Route::get('/cua-hang/san-pham/{product}', [StorefrontController::class, 'show'])->name('shop.products.show');
 Route::get('/cua-hang/san-pham/{product}/bien-the/{variant}', [StorefrontController::class, 'showVariant'])->name('shop.products.variant');
 Route::get('/gio-hang', [StorefrontController::class, 'cart'])->name('cart.index');
 Route::post('/gio-hang/them/{product}', [StorefrontController::class, 'addToCart'])->name('cart.add');
 Route::patch('/gio-hang/{variant}', [StorefrontController::class, 'updateCart'])->name('cart.update');
+Route::post('/gio-hang/{variant}/doi-bien-the', [StorefrontController::class, 'replaceVariant'])->name('cart.replace-variant');
 Route::delete('/gio-hang/{variant}', [StorefrontController::class, 'removeFromCart'])->name('cart.remove');
 Route::get('/thanh-toan', [StorefrontController::class, 'checkout'])->name('checkout');
 Route::post('/thanh-toan', [StorefrontController::class, 'placeOrder'])->name('checkout.place');
@@ -25,6 +27,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('login.store');
         Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
         Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+        Route::get('/register/verify', [AuthController::class, 'showRegisterOtp'])->name('register.verify');
+        Route::post('/register/verify', [AuthController::class, 'verifyRegistration'])->name('register.verify.submit');
         Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
         Route::post('/forgot-password', [AuthController::class, 'sendOtp'])->name('password.email');
         Route::get('/verify-otp', [AuthController::class, 'showOtp'])->name('password.otp');
