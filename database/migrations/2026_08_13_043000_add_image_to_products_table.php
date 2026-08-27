@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasColumn('products', 'image')) {
+        if (! Schema::hasColumn('products', 'image')) {
             Schema::table('products', function (Blueprint $table) {
                 $table->string('image')->nullable()->after('base_price');
             });

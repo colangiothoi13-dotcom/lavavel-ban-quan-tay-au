@@ -2,10 +2,10 @@
 
 @section('content')
 <style>
-    .admin-profile-container { padding: 10px; max-width: 900px; }
+    .admin-profile-container { padding: 0; max-width: none; }
     .page-title { font-size: 22px; font-weight: 600; color: #1a202c; margin-bottom: 20px; }
     
-    .profile-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 24px; }
+    .profile-card { background: transparent; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
     
     /* Giao diện phần Header thông tin và Avatar */
     .profile-header { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #edf2f7; padding-bottom: 20px; margin-bottom: 24px; }
@@ -57,7 +57,7 @@
     @endif
 
     <div class="profile-card">
-        <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route(auth()->user()->isAdmin() ? 'admin.profile.update' : 'user.profile.update') }}" enctype="multipart/form-data">
             @csrf 
             @method('PUT')
 
@@ -127,7 +127,7 @@
             </div>
         </form>
 
-        <form id="logout-form" method="POST" action="{{ route('logout') }}" style="display: none;">
+        <form id="logout-form" method="POST" action="{{ route(auth()->user()->isAdmin() ? 'admin.logout' : 'buyer.logout') }}" style="display: none;">
             @csrf
         </form>
     </div>

@@ -18,7 +18,7 @@
         .admin-sidebar .sidebar-account { margin-top: auto; border-top: 1px solid #666; }
 
         .admin-main { flex: 1; display: flex; flex-direction: column; background-color: #f5f5f5; }
-        .admin-header { height: 70px; background-color: #1f2937; border-bottom: none; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .admin-header { height: 70px; background-color: #1f2937; border-bottom: none; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
         .admin-header .title { font-size: 20px; font-weight: bold; color: #ffffff; }
         .admin-header .actions { display: flex; align-items: center; gap: 20px; }
         .admin-header .actions a { font-size: 15px; font-weight: 500; color: #60a5fa; text-decoration: none; }
@@ -26,7 +26,7 @@
         .btn-admin-logout:hover { background-color: #dc2626; }
         
         .admin-content-area { flex: 1; padding: 25px; overflow-y: auto; }
-        .admin-card { background-color: #ffffff; padding: 25px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); min-height: 100%; border-top: 4px solid #333; }
+        .admin-card { background-color: #ffffff; padding: 25px; border-radius: 4px; min-height: 100%; border-top: 4px solid #333; }
 
         /* ================= PHẦN DÀNH CHO USER ================= */
         .user-sidebar { width: 250px; background-color: #535353; color: white; display: flex; flex-direction: column; flex-shrink: 0; }
@@ -37,7 +37,7 @@
         .user-sidebar .sidebar-account { margin-top: auto; border-top: 1px solid #666; }
 
         .user-main { flex: 1; display: flex; flex-direction: column; background-color: #f1f5f9; }
-        .user-header { height: 70px; background-color: #1f2937; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .user-header { height: 70px; background-color: #1f2937; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
         .user-header .logo { font-size: 22px; font-weight: bold; color: #ffffff; text-transform: uppercase; text-decoration: none; flex-shrink: 0; }
         .user-header .actions { display: flex; align-items: center; gap: 20px; }
         
@@ -47,12 +47,12 @@
         .header-user-profile svg { width: 20px; height: 20px; fill: #8b5cf6; }
 
         /* CSS cho thanh tìm kiếm (.hero-search) */
-        .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 40px 20px; text-align: center; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 40px 20px; text-align: center; border-radius: 12px; margin-bottom: 30px; }
         .hero h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; color: #f8fafc; }
         .hero p { font-size: 15px; color: #94a3b8; max-width: 600px; margin: 0 auto 20px; }
         
         .search-wrapper { position: relative; width: min(600px, 45vw); }
-        .hero-search { display: flex; justify-content: center; width: 100%; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 9999px; background: #fff; overflow: hidden; border: 1px solid #cbd5e1; }
+        .hero-search { display: flex; justify-content: center; width: 100%; margin: 0 auto; border-radius: 9999px; background: #fff; overflow: hidden; border: 1px solid #cbd5e1; }
         .hero-search input { flex: 1; padding: 12px 24px; border: none; background: transparent; font-size: 15px; outline: none; }
         .hero-search button { padding: 12px 30px; background: #b4860b; color: #fff; border: none; border-radius: 0 9999px 9999px 0; font-weight: 700; font-size: 14px; cursor: pointer; transition: 0.2s; }
         .hero-search button:hover { background: #9c6f19; }
@@ -66,7 +66,7 @@
         .btn-user-logout:hover { background-color: #dc2626; }
 
         .user-content-area { flex: 1; padding: 30px; overflow-y: auto; }
-        .user-card { background-color: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 100%; }
+        .user-card { background-color: #ffffff; padding: 30px; border-radius: 12px; min-height: 100%; }
     </style>
 </head>
 <body>
@@ -79,8 +79,10 @@
                 <li><a href="{{ route('shop.home') }}">Trang chủ shop</a></li>
                 <li><a href="{{ route('categories.index') }}" class="{{ Request::is('categories*') ? 'active' : '' }}">Danh mục</a></li>
                 <li><a href="{{ route('products.index') }}" class="{{ Request::is('products*') ? 'active' : '' }}">Sản Phẩm</a></li>
+                <li><a href="{{ route('admin.orders.index') }}" class="{{ Request::is('admin/orders*') ? 'active' : '' }}">Đơn hàng</a></li>
+                <li><a href="{{ route('admin.reports.index') }}" class="{{ Request::is('admin/reports*') ? 'active' : '' }}">Thống kê báo cáo</a></li>
                 <li class="sidebar-account">
-                    <a href="{{ route('profile.show') }}" class="{{ Request::is('admin/profile*') || Request::is('profile*') ? 'active' : '' }}">Tài khoản</a>
+                    <a href="{{ route('admin.profile.show') }}" class="{{ Request::is('admin/profile*') ? 'active' : '' }}">Tài khoản</a>
                 </li>
             </ul>
         </div>
@@ -89,8 +91,8 @@
             <div class="admin-header">
                 <div class="title">HỆ THỐNG QUẢN LÝ QUẦN TÂY ÂU</div>
                 <div class="actions">
-                    <a href="{{ route('profile.show') }}">👤 {{ auth()->user()->name }}</a>
-                    <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                    <a href="{{ route('admin.profile.show') }}">👤 {{ auth()->user()->name }}</a>
+                    <form method="POST" action="{{ route('admin.logout') }}" style="display: inline;">
                         @csrf
                         <button type="submit" class="btn-admin-logout">Đăng xuất</button>
                     </form>
@@ -111,8 +113,10 @@
             <ul class="sidebar-menu">
                 <li><a href="{{ route('shop.home') }}">🏡Trang chủ</a></li>                
                 <li><a href="{{ url('gio-hang') }}" class="{{ Request::is('gio-hang*') ? 'active' : '' }}">📦Giỏ hàng</a></li>
+                <li><a href="{{ route('user.addresses.index') }}" class="{{ Request::is('user/addresses*') ? 'active' : '' }}">📍 Địa chỉ</a></li>
+                <li><a href="{{ route('user.orders.index') }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}">🛍️ Đơn mua</a></li>
                 <li class="sidebar-account">
-                    <a href="{{ route('profile.show') }}" class="{{ Request::is('profile*') ? 'active' : '' }}">👤 Hồ sơ tài khoản</a>
+                    <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}">👤 Hồ sơ tài khoản</a>
                 </li>
             </ul>
         </div>
@@ -135,7 +139,7 @@
                 <div class="actions">
                     {{-- THÊM PHẦN XIN CHÀO, AVATAR VÀ TÊN Ở ĐÂY --}}
                     @if(auth()->check())
-                        <a href="{{ route('profile.show') }}" class="header-user-profile">
+                        <a href="{{ route('user.profile.show') }}" class="header-user-profile">
                             <span>Xin chào!</span>
                             @if(auth()->user()->avatar)
                                 <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar">
@@ -146,7 +150,7 @@
                         </a>
                     @endif
 
-                    <form method="POST" action="{{ route('logout') }}" style="display: inline; margin: 0;">
+                    <form method="POST" action="{{ route('buyer.logout') }}" style="display: inline; margin: 0;">
                         @csrf
                         <button type="submit" class="btn-user-logout">Đăng xuất</button>
                     </form>

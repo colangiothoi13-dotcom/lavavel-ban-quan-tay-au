@@ -24,14 +24,14 @@
         .hero h1{margin:0 0 8px;font-size:34px}
         .products{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
         .product-card{background:#fff;border:1px solid #e3e6e8;border-radius:6px;overflow:hidden;transition:box-shadow .2s}
-        .product-card:hover{box-shadow:0 7px 18px #0002}
+        .product-card:hover{border-color:#cbd5e1}
         .product-card img{width:100%;height:250px;object-fit:cover;background:#e9ecef}
         .product-card-body{padding:15px}
         .product-card h3{margin:0 0 10px;font-size:17px}
         .product-card a{text-decoration:none;color:#20252b}
         .price{font-weight:700;color:#b45309;font-size:18px}
         .btn{display:inline-block;border:0;border-radius:4px;background:#b45309;color:#fff;padding:11px 16px;text-decoration:none;cursor:pointer;font-weight:600}
-        .detail{display:grid;grid-template-columns:minmax(280px,1fr) 1fr;gap:32px;background:#fff;padding:25px}
+        .detail{display:grid;grid-template-columns:minmax(280px,1fr) 1fr;gap:32px;background:#fff;padding:32px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
         .detail img{width:100%;max-height:520px;object-fit:contain;background:#f1f2f3}
         .field{margin:13px 0}
         .field label{display:block;font-weight:600;margin-bottom:6px}
@@ -40,7 +40,7 @@
         .cart-total{text-align:right;font-size:20px;font-weight:700;margin:22px 0}
         .pagination{margin-top:24px}
         @media(max-width:700px){
-            .detail{grid-template-columns:1fr}
+            .detail{grid-template-columns:1fr;padding:20px}
             .nav{display:block}
             .nav div{margin-top:12px}
             .cart-row{grid-template-columns:1fr}
@@ -56,7 +56,7 @@
         <a href="{{ route('shop.home') }}">Trang chủ</a>
         @auth
             <!-- Hiển thị tên người dùng và dẫn vào trang profile -->
-            <a href="{{ route('profile.show') }}" style="color: #60a5fa; font-weight: bold;">
+            <a href="{{ route(auth()->user()->isAdmin() ? 'admin.profile.show' : 'user.profile.show') }}" style="color: #60a5fa; font-weight: bold;">
                 👤 {{ auth()->user()->name }}
             </a>
 
@@ -66,7 +66,7 @@
             @endif
 
             <!-- Form nút đăng xuất nhanh -->
-            <form method="POST" action="{{ route('logout') }}" class="logout-form-nav">
+            <form method="POST" action="{{ route(auth()->user()->isAdmin() ? 'admin.logout' : 'buyer.logout') }}" class="logout-form-nav">
                 @csrf
                 <button type="submit" class="btn-logout-nav">Đăng xuất</button>
             </form>

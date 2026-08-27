@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Category;
-use App\Models\CartItem;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StorefrontController
 {
@@ -22,14 +21,14 @@ class StorefrontController
             return view('shop.home', [
                 'products' => new LengthAwarePaginator([], 0, 12),
                 'layout' => $layout,
-            'categories' => $categories,
+                'categories' => $categories,
             ]);
         }
 
         $query = Product::with('variants');
 
         if (! $request->user()?->isAdmin() && $request->filled('keyword')) {
-            $query->where('name', 'like', '%' . $request->string('keyword') . '%');
+            $query->where('name', 'like', '%'.$request->string('keyword').'%');
         }
 
         if (! $request->user()?->isAdmin() && $request->filled('size')) {
@@ -75,7 +74,7 @@ class StorefrontController
         }
 
         $products = Product::query()
-            ->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($keyword, 'UTF-8') . '%'])
+            ->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($keyword, 'UTF-8').'%'])
             ->orderBy('name')
             ->limit(8)
             ->get(['id', 'name', 'image']);
@@ -83,7 +82,7 @@ class StorefrontController
         return response()->json($products->map(fn (Product $product) => [
             'name' => $product->name,
             'url' => route('shop.products.show', $product),
-            'image' => $product->image ? asset('storage/' . $product->image) : null,
+            'image' => $product->image ? asset('storage/'.$product->image) : null,
         ])->values());
     }
 
@@ -91,7 +90,11 @@ class StorefrontController
     {
         $product->load('variants');
 
-        return view('shop.show', ['product' => $product, 'selectedVariant' => null]);
+        return view('shop.show', [
+            'product' => $product,
+            'selectedVariant' => null,
+            'layout' => request()->user() ? 'layouts.app' : 'layouts.shop',
+        ]);
     }
 
     public function showVariant(Product $product, ProductVariant $variant)
@@ -99,7 +102,11 @@ class StorefrontController
         abort_unless($variant->product_id === $product->id, 404);
         $product->load('variants');
 
-        return view('shop.show', ['product' => $product, 'selectedVariant' => $variant]);
+        return view('shop.show', [
+            'product' => $product,
+            'selectedVariant' => $variant,
+            'layout' => request()->user() ? 'layouts.app' : 'layouts.shop',
+        ]);
     }
 
     public function cart(Request $request)
@@ -114,6 +121,8 @@ class StorefrontController
         $data = $request->validate([
             'variant_id' => ['required', 'integer', 'exists:product_variants,id'],
             'quantity' => ['required', 'numeric', 'integer', 'min:1', 'max:9223372036854775807'],
+            'return_to' => ['nullable', 'string', 'max:2048'],
+            'purchase_action' => ['nullable', 'in:add_to_cart,buy_now'],
         ]);
         $variant = $product->variants()->findOrFail($data['variant_id']);
         $quantity = (int) $data['quantity'];
@@ -124,11 +133,26 @@ class StorefrontController
 
         $cart = $request->session()->get('cart', []);
         $key = (string) $variant->id;
-        $cart[$key] = min(($cart[$key] ?? 0) + $quantity, $variant->stock);
+        $buyNow = ($data['purchase_action'] ?? 'add_to_cart') === 'buy_now';
+        $newQuantity = $buyNow ? $quantity : (int) ($cart[$key] ?? 0) + $quantity;
+
+        if ($newQuantity > $variant->stock) {
+            return back()->withErrors([
+                'quantity' => 'Trong giỏ đã có sản phẩm này. Tổng số lượng không được vượt quá '.$variant->stock.' sản phẩm còn trong kho.',
+            ])->withInput();
+        }
+
+        $cart[$key] = $newQuantity;
         $request->session()->put('cart', $cart);
         $this->saveCartItem($request, $variant->id, $cart[$key]);
 
-        return redirect()->route('cart.index')->with('status', 'Đã thêm sản phẩm vào giỏ hàng.');
+        if ($buyNow) {
+            return redirect()->route('checkout', ['selected_items' => [$variant->id]]);
+        }
+
+        $returnTo = $this->safeStorefrontReturnUrl($request, $data['return_to'] ?? null);
+
+        return redirect()->to($returnTo)->with('status', 'Đã thêm sản phẩm vào giỏ hàng.');
     }
 
     public function updateCart(Request $request, ProductVariant $variant)
@@ -189,24 +213,49 @@ class StorefrontController
             return redirect()->route('cart.index')->withErrors(['cart' => 'Vui lòng chọn ít nhất một sản phẩm.']);
         }
 
-        return view('shop.checkout', compact('items'));
+        $addresses = $request->user()?->addresses()->latest('is_default')->latest()->get() ?? collect();
+
+        return view('shop.checkout', compact('items', 'addresses'));
     }
 
     public function placeOrder(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
-            'address' => ['required', 'string', 'max:500'],
+            'name' => ['nullable', 'string', 'max:255', 'required_without:saved_address_id'],
+            'phone' => ['nullable', 'string', 'max:30', 'required_without:saved_address_id'],
+            'address' => ['nullable', 'string', 'max:500', 'required_without:saved_address_id'],
+            'saved_address_id' => ['nullable', 'integer', 'exists:addresses,id'],
+            'payment_method' => ['required', 'in:cash,bank_transfer'],
         ]);
+        if (! empty($data['saved_address_id'])) {
+            $savedAddress = $request->user()?->addresses()->findOrFail($data['saved_address_id']);
+            $data['name'] = $savedAddress->recipient_name;
+            $data['phone'] = $savedAddress->phone;
+            $data['address'] = $savedAddress->full_address;
+        }
         $selectedIds = $request->input('selected_items', []);
         $items = $this->cartItems($request, $selectedIds);
         abort_if($items->isEmpty(), 422, 'Vui lòng chọn ít nhất một sản phẩm.');
 
-        DB::transaction(function () use ($items, $request) {
+        DB::transaction(function () use ($items, $request, $data) {
+            $order = $request->user()->orders()->create([
+                'recipient_name' => $data['name'],
+                'phone' => $data['phone'],
+                'address' => $data['address'],
+                'payment_method' => $data['payment_method'],
+                'payment_status' => 'unpaid',
+                'total' => $items->sum('total'),
+            ]);
             foreach ($items as $item) {
                 $variant = ProductVariant::lockForUpdate()->findOrFail($item['variant']->id);
                 abort_if($variant->stock < $item['quantity'], 422, 'Một sản phẩm vừa hết hàng.');
+                $order->items()->create([
+                    'product_variant_id' => $variant->id,
+                    'product_name' => $variant->product->name,
+                    'variant_name' => trim($variant->color.' - '.$variant->size, ' -'),
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                ]);
                 $variant->decrement('stock', $item['quantity']);
             }
 
@@ -256,5 +305,20 @@ class StorefrontController
                 ['quantity' => $quantity]
             );
         }
+    }
+
+    private function safeStorefrontReturnUrl(Request $request, ?string $returnTo): string
+    {
+        if ($returnTo) {
+            $parts = parse_url($returnTo);
+            $sameHost = ! isset($parts['host']) || strcasecmp($parts['host'], $request->getHost()) === 0;
+            $validScheme = ! isset($parts['scheme']) || in_array($parts['scheme'], ['http', 'https'], true);
+
+            if ($sameHost && $validScheme && str_starts_with($parts['path'] ?? '/', '/')) {
+                return $returnTo;
+            }
+        }
+
+        return route('shop.home').'#products';
     }
 }

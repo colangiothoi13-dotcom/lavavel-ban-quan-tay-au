@@ -10,6 +10,7 @@ class CategoryController extends Controller
     public function index()
     {
         $categories = Category::all();
+
         return view('categories.index', compact('categories'));
     }
 
@@ -20,11 +21,11 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        Category::create($request->all());
+        Category::create($data);
 
         return redirect()->route('categories.index')
             ->with('success', 'Category created successfully.');
@@ -45,11 +46,11 @@ class CategoryController extends Controller
     // Sửa hàm update
     public function update(Request $request, Category $category)
     {
-        $request->validate([
+        $data = $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        $category->update($request->all());
+        $category->update($data);
 
         return redirect()->route('categories.index')
             ->with('success', 'Category updated successfully.');

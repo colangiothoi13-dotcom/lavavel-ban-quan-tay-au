@@ -6,11 +6,11 @@
     .shop-home { color: #334155; font-family: system-ui, -apple-system, sans-serif; }
     
     /* Hero Banner & Thanh tìm kiếm trung tâm */
-    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 40px 20px; text-align: center; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 40px 20px; text-align: center; border-radius: 12px; margin-bottom: 30px; }
     .hero h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; color: #f8fafc; }
     .hero p { font-size: 15px; color: #94a3b8; max-width: 600px; margin: 0 auto 20px; }
     
-    .hero-search { display: flex; justify-content: center; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 30px;}
+    .hero-search { display: flex; justify-content: center; max-width: 600px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 30px;}
     .hero-search input { flex: 1; padding: 12px 20px; border: none; border-radius: 30px 0 0 30px; font-size: 14px; outline: none; }
     .hero-search button { padding: 12px 24px; background: #b4860b; color: #fff; border: none; border-radius: 0 30px 30px 0; font-weight: 700; font-size: 14px; cursor: pointer; transition: 0.2s; }
     .hero-search button:hover { background: #9c6f19; }
@@ -36,7 +36,7 @@
     .shop-main h2 { color: #1e293b; font-size: 22px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-top: 0; margin-bottom: 20px; }
     .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
     .product-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; text-decoration: none; color: #1e293b; transition: 0.3s; }
-    .product-card:hover { box-shadow: 0 8px 16px rgba(0,0,0,0.08); transform: translateY(-3px); }
+    .product-card:hover { border-color: #cbd5e1; }
     .product-card img { width: 100%; height: 240px; object-fit: cover; }
     .product-card-body { padding: 15px; }
     .product-card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
@@ -154,9 +154,9 @@
             </div>
         </aside>
 
-        <section class="shop-main">
+        <section class="shop-main" id="products">
     @else
-        <section class="shop-main" style="width: 100%;">
+        <section class="shop-main" id="products" style="width: 100%;">
     @endif
 
             <h2>Khám phá sản phẩm</h2>
@@ -164,7 +164,7 @@
                 @forelse($products as $product)
                     @php($variant = $product->variants->first())
                     @php($image = $product->image ? asset('storage/'.$product->image) : 'https://via.placeholder.com/500x600?text=No+Image')
-                    <a class="product-card" href="{{ auth()->check() && auth()->user()->isAdmin() ? route('products.show', $product) : route('shop.products.show', $product) }}">
+                    <a class="product-card" href="{{ auth()->check() && auth()->user()->isAdmin() ? route('products.show', $product) : route('shop.products.show', ['product' => $product, 'return_to' => request()->fullUrl().'#products']) }}">
                         <img src="{{ $image }}" alt="{{ $product->name }}">
                         <div class="product-card-body">
                             <h3>{{ $product->name }}</h3>

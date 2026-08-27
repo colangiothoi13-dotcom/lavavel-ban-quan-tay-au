@@ -1,0 +1,125 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\ProductVariant;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class ReportController extends Controller
+{
+    public function index(Request $request): View
+    {
+        [$from, $to] = $this->dateRange($request);
+        $orders = $this->reportableOrders($from, $to)->with('items')->oldest('created_at')->get();
+        $dailyRevenue = $this->dailyRevenue($orders, $from, $to);
+        $soldProducts = $this->soldProducts($orders);
+
+        return view('admin.reports.index', [
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'orders' => $orders,
+            'dailyRevenue' => $dailyRevenue,
+            'maxDailyRevenue' => (float) $dailyRevenue->max('total'),
+            'totalRevenue' => $orders->sum('total'),
+            'totalOrders' => $orders->count(),
+            'totalProducts' => $orders->sum(fn (Order $order) => $order->items->sum('quantity')),
+            'soldProducts' => $soldProducts,
+        ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        [$from, $to] = $this->dateRange($request);
+        $orders = $this->reportableOrders($from, $to)
+            ->with(['user:id,name,email', 'items'])
+            ->oldest('created_at')
+            ->get();
+        $fileName = "bao-cao-doanh-thu-{$from->toDateString()}-den-{$to->toDateString()}.csv";
+
+        return response()->streamDownload(function () use ($orders): void {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, ['Mã đơn', 'Ngày đặt', 'Khách hàng', 'Email', 'Sản phẩm', 'Số lượng', 'Doanh thu', 'Thanh toán'], ';');
+
+            foreach ($orders as $order) {
+                fputcsv($output, [
+                    $order->id,
+                    $order->created_at->format('d/m/Y H:i'),
+                    $order->user?->name ?? $order->recipient_name,
+                    $order->user?->email ?? '',
+                    $order->items->pluck('product_name')->unique()->implode(', '),
+                    $order->items->sum('quantity'),
+                    (string) $order->total,
+                    $order->payment_label,
+                ], ';');
+            }
+
+            fclose($output);
+        }, $fileName, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** @return array{Carbon, Carbon} */
+    private function dateRange(Request $request): array
+    {
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+        $from = Carbon::parse($data['from'] ?? now()->startOfMonth()->toDateString())->startOfDay();
+        $to = Carbon::parse($data['to'] ?? now()->toDateString())->endOfDay();
+
+        return [$from, $to];
+    }
+
+    private function reportableOrders(Carbon $from, Carbon $to): Builder
+    {
+        return Order::query()
+            ->where('payment_status', 'paid')
+            ->where('status', '!=', 'cancelled')
+            ->whereBetween('created_at', [$from, $to]);
+    }
+
+    /** @return Collection<int, array{date: string, label: string, total: float}> */
+    private function dailyRevenue(Collection $orders, Carbon $from, Carbon $to): Collection
+    {
+        $revenueByDate = $orders
+            ->groupBy(fn (Order $order) => $order->created_at->toDateString())
+            ->map(fn (Collection $dailyOrders) => (float) $dailyOrders->sum('total'));
+
+        return collect(CarbonPeriod::create($from->copy()->startOfDay(), $to->copy()->startOfDay()))
+            ->map(fn (Carbon $date) => [
+                'date' => $date->toDateString(),
+                'label' => $date->format('d/m'),
+                'total' => $revenueByDate->get($date->toDateString(), 0),
+            ])->values();
+    }
+
+    /** @return Collection<int, array{product: string, variant: string, quantity: int, stock: int}> */
+    private function soldProducts(Collection $orders): Collection
+    {
+        $quantities = $orders->flatMap->items
+            ->groupBy('product_variant_id')
+            ->map(fn (Collection $items) => (int) $items->sum('quantity'));
+        $variants = ProductVariant::with('product')->whereIn('id', $quantities->keys())->get()->keyBy('id');
+
+        return $quantities->map(function (int $quantity, string $variantId) use ($variants): array {
+            $variant = $variants->get($variantId);
+
+            return [
+                'product' => $variant?->product?->name ?? 'Sản phẩm đã xóa',
+                'variant' => $variant?->color || $variant?->size
+                    ? trim($variant->color.' - '.$variant->size, ' -')
+                    : 'Mặc định',
+                'quantity' => $quantity,
+                'stock' => (int) ($variant?->stock ?? 0),
+            ];
+        })->sortBy([['product', 'asc'], ['variant', 'asc']])->values();
+    }
+}

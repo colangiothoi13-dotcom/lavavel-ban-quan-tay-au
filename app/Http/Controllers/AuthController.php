@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\CartItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -12,6 +11,8 @@ use Throwable;
 
 class AuthController extends Controller
 {
+    private const OTP_LIFETIME_MINUTES = 15;
+
     public function showLogin()
     {
         return view('auth.login');
@@ -56,17 +57,12 @@ class AuthController extends Controller
                 ->withErrors(['email' => 'Email này đã tồn tại. Bạn hãy dùng chức năng quên mật khẩu.']);
         }
 
-        $otp = (string) random_int(100000, 999999);
         $request->session()->put('registration', [
             'data' => $data,
-            'otp' => $otp,
-            'expires_at' => now()->addMinutes(10)->timestamp,
         ]);
 
         try {
-            Mail::raw("Mã xác minh đăng ký tài khoản của bạn là: {$otp}. Mã có hiệu lực trong 10 phút.", function ($message) use ($data) {
-                $message->to($data['email'])->subject('Xác minh đăng ký tài khoản');
-            });
+            $this->sendRegistrationOtp($request);
         } catch (Throwable $exception) {
             report($exception);
             $request->session()->forget('registration');
@@ -75,6 +71,21 @@ class AuthController extends Controller
         }
 
         return redirect()->route('register.verify')->with('status', 'Mã xác minh đã được gửi đến email của bạn.');
+    }
+
+    public function resendRegistrationOtp(Request $request)
+    {
+        abort_unless($request->session()->has('registration.data.email'), 404);
+
+        try {
+            $this->sendRegistrationOtp($request);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors(['otp' => 'Không thể gửi lại mã xác minh. Bạn hãy thử lại sau hoặc kiểm tra cấu hình SMTP.']);
+        }
+
+        return back()->with('status', 'Mã xác minh mới đã được gửi lại. Mã cũ không còn hiệu lực.');
     }
 
     public function showRegisterOtp()
@@ -90,8 +101,12 @@ class AuthController extends Controller
         abort_unless($registration, 404);
 
         $data = $request->validate(['otp' => ['required', 'digits:6']]);
-        if ($registration['otp'] !== $data['otp'] || now()->timestamp > $registration['expires_at']) {
-            return back()->withErrors(['otp' => 'Mã xác minh không đúng hoặc đã hết hạn.']);
+        if (now()->timestamp >= (int) $registration['expires_at']) {
+            return back()->withErrors(['otp' => 'Mã xác minh đã hết hạn. Vui lòng bấm gửi lại để nhận mã mới.']);
+        }
+
+        if (! hash_equals((string) $registration['otp'], (string) $data['otp'])) {
+            return back()->withErrors(['otp' => 'Mã xác minh không đúng. Vui lòng dùng mã mới nhất trong email.']);
         }
 
         if (User::where('email', $registration['data']['email'])->exists()) {
@@ -102,6 +117,7 @@ class AuthController extends Controller
         }
 
         $user = User::create($registration['data'] + ['role' => 'user']);
+        $user->markEmailAsVerified();
         $request->session()->forget('registration');
         Auth::login($user);
         $request->session()->regenerate();
@@ -138,6 +154,21 @@ class AuthController extends Controller
         $request->session()->put('cart', $user->cartItems()->pluck('quantity', 'product_variant_id')->all());
     }
 
+    private function sendRegistrationOtp(Request $request): void
+    {
+        $registration = $request->session()->get('registration');
+        abort_unless(isset($registration['data']['email']), 404);
+
+        $otp = (string) random_int(100000, 999999);
+        $registration['otp'] = $otp;
+        $registration['expires_at'] = now()->addMinutes(self::OTP_LIFETIME_MINUTES)->timestamp;
+        $request->session()->put('registration', $registration);
+
+        Mail::raw("Mã xác minh đăng ký tài khoản của bạn là: {$otp}. Mã có hiệu lực trong ".self::OTP_LIFETIME_MINUTES.' phút.', function ($message) use ($registration) {
+            $message->to($registration['data']['email'])->subject('Xác minh đăng ký tài khoản');
+        });
+    }
+
     public function showForgotPassword()
     {
         return view('auth.forgot-password');
@@ -148,10 +179,13 @@ class AuthController extends Controller
         $data = $request->validate(['email' => ['required', 'email', 'exists:users,email']]);
         $user = User::where('email', $data['email'])->firstOrFail();
         $otp = (string) random_int(100000, 999999);
-        $user->forceFill(['reset_otp' => $otp, 'reset_otp_expires_at' => now()->addMinutes(10)])->save();
+        $user->forceFill([
+            'reset_otp' => $otp,
+            'reset_otp_expires_at' => now()->addMinutes(self::OTP_LIFETIME_MINUTES),
+        ])->save();
 
         try {
-            Mail::raw("Mã xác minh đặt lại mật khẩu của bạn là: {$otp}. Mã có hiệu lực trong 10 phút.", function ($message) use ($user) {
+            Mail::raw("Mã xác minh đặt lại mật khẩu của bạn là: {$otp}. Mã có hiệu lực trong ".self::OTP_LIFETIME_MINUTES.' phút.', function ($message) use ($user) {
                 $message->to($user->email)->subject('Mã xác minh đặt lại mật khẩu');
             });
         } catch (Throwable $exception) {
@@ -176,8 +210,12 @@ class AuthController extends Controller
         ]);
         $user = User::where('email', $data['email'])->first();
 
-        if (! $user || $user->reset_otp !== $data['otp'] || ! $user->reset_otp_expires_at || $user->reset_otp_expires_at->isPast()) {
-            return back()->withErrors(['otp' => 'Mã xác minh không đúng hoặc đã hết hạn.'])->withInput();
+        if (! $user || ! $user->reset_otp_expires_at || $user->reset_otp_expires_at->isPast()) {
+            return back()->withErrors(['otp' => 'Mã xác minh đã hết hạn. Vui lòng gửi lại để nhận mã mới.'])->withInput();
+        }
+
+        if (! hash_equals((string) $user->reset_otp, (string) $data['otp'])) {
+            return back()->withErrors(['otp' => 'Mã xác minh không đúng. Vui lòng dùng mã mới nhất trong email.'])->withInput();
         }
 
         return redirect()->route('password.reset')->with('reset_token', Str::random(40))->with('email', $user->email);

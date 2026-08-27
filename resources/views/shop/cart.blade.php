@@ -7,7 +7,7 @@
         max-width: 100% !important; 
         width: 100%;
         margin: 0; 
-        padding: 0 20px; 
+        padding: 0;
         position: relative; 
     }
     .cart-container h2 { font-size: 24px; color: #1e293b; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 20px; }
@@ -16,11 +16,10 @@
         display: flex;
         align-items: center;
         padding: 20px 15px;
-        background: #fff;
+        background: transparent;
         border-bottom: 1px solid #f1f5f9;
-        border-radius: 8px;
+        border-radius: 0;
         margin-bottom: 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
     .cart-col-checkbox { width: 40px; text-align: center; }
     .cart-col-img { width: 90px; padding: 0 10px; flex-shrink: 0; }
@@ -92,13 +91,13 @@
     .btn-delete { background: none; border: none; color: #ee4d2d; cursor: pointer; font-size: 14px; }
     .btn-delete:hover { text-decoration: underline; }
     /* Cart Footer */
-    .cart-footer { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 20px; border-radius: 8px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .cart-footer { display: flex; justify-content: space-between; align-items: center; background: transparent; padding: 20px 0 0; border-radius: 0; margin-top: 20px; border-top: 1px solid #e2e8f0; box-shadow: none; }
     .cart-total { font-size: 18px; font-weight: bold; color: #ee4d2d; }
     .btn { padding: 10px 24px; background: #ee4d2d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-weight: 500; font-size: 14px; transition: 0.2s; }
     .btn:hover { background: #d73211; }
     .btn-light { background: #e2e8f0; color: #475569; }
     .btn-light:hover { background: #cbd5e1; }
-    .empty-cart { padding: 40px; text-align: center; background: #fff; border-radius: 8px; color: #64748b; }
+    .empty-cart { padding: 40px 0; text-align: center; background: transparent; border-radius: 0; color: #64748b; }
     .variant-chip-form { display: inline-block; margin: 0; }
     .chip { font-family: inherit; }
     

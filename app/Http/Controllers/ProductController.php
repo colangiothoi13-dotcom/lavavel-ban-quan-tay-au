@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,7 +16,7 @@ class ProductController extends Controller
         $query = Product::with(['variants', 'category']);
 
         if ($request->filled('keyword')) {
-            $query->where('name', 'like', '%' . $request->keyword . '%');
+            $query->where('name', 'like', '%'.$request->keyword.'%');
         }
 
         if ($request->filled('size')) {
@@ -223,7 +224,7 @@ class ProductController extends Controller
                 'stock' => $variantData['stock'] ?? $variant->stock,
             ];
 
-            if (! empty($variantData['image']) && $variantData['image'] instanceof \Illuminate\Http\UploadedFile && $variantData['image']->isValid()) {
+            if (! empty($variantData['image']) && $variantData['image'] instanceof UploadedFile && $variantData['image']->isValid()) {
                 $this->deleteImageIfExists($variant->image);
                 $payload['image'] = $this->uploadImage($variantData['image']);
             }
