@@ -54,6 +54,9 @@ Route::prefix('user')->middleware('auth')->group(function () {
     Route::patch('/addresses/{address}/default', [AddressController::class, 'makeDefault'])->name('user.addresses.default');
     Route::delete('/addresses/{address}', [AddressController::class, 'destroy'])->name('user.addresses.destroy');
     Route::get('/don-mua', [OrderController::class, 'index'])->name('user.orders.index');
+    Route::get('/don-mua/{order}', [OrderController::class, 'show'])->name('user.orders.show');
+    Route::post('/don-mua/{order}/mua-lai', [OrderController::class, 'reorder'])->name('user.orders.reorder');
+    Route::patch('/don-mua/{order}/huy', [OrderController::class, 'cancel'])->name('user.orders.cancel');
 });
 
 Route::prefix('admin')->group(function () {

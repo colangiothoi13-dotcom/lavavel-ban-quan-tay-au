@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
+use ZipArchive;
 
 class RevenueReportTest extends TestCase
 {
@@ -23,6 +24,7 @@ class RevenueReportTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.reports.index', ['from' => '2026-08-10', 'to' => '2026-08-11']))
             ->assertOk()
+            ->assertSee('0900000000')
             ->assertViewHas('totalRevenue', 400000)
             ->assertViewHas('totalOrders', 2)
             ->assertViewHas('dailyRevenue', function (Collection $dailyRevenue): bool {
@@ -31,6 +33,25 @@ class RevenueReportTest extends TestCase
                     '2026-08-11' => 0,
                 ];
             });
+
+        $exportResponse = $this->actingAs($admin)
+            ->get(route('admin.reports.export', ['from' => '2026-08-10', 'to' => '2026-08-11']));
+
+        $exportResponse->assertOk();
+        $exportContent = $exportResponse->streamedContent();
+        $this->assertStringStartsWith('PK', $exportContent);
+
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'report-test-');
+        file_put_contents($temporaryFile, $exportContent);
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($temporaryFile) === true);
+        $worksheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        unlink($temporaryFile);
+
+        $this->assertStringContainsString('0900000000', $worksheet);
+        $this->assertStringContainsString('customWidth="1"', $worksheet);
+        $this->assertStringContainsString('r="I1"', $worksheet);
     }
 
     private function createOrder(

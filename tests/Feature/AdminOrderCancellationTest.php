@@ -2,10 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Events\OrderStatusChanged;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Notifications\OrderStatusUpdatedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class AdminOrderCancellationTest extends TestCase
@@ -82,5 +87,78 @@ class AdminOrderCancellationTest extends TestCase
         $this->assertSame(1, $admin->orders()->where('status', 'shipping')->count());
         $this->assertSame(1, $admin->orders()->where('status', 'cancelled')->count());
         $this->assertSame(0, $admin->orders()->where('status', 'pending')->count());
+    }
+
+    public function test_admin_cannot_move_a_completed_order_back_to_pending(): void
+    {
+        Event::fake([OrderStatusChanged::class]);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $order = $this->makeOrder($customer, 'completed');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), ['status' => 'pending'])
+            ->assertStatus(422);
+
+        $this->assertSame('completed', $order->fresh()->status);
+        Event::assertNotDispatched(OrderStatusChanged::class);
+    }
+
+    public function test_shipping_and_completed_statuses_dispatch_order_events(): void
+    {
+        Event::fake([OrderStatusChanged::class]);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $shippingOrder = $this->makeOrder($customer, 'processing');
+        $completedOrder = $this->makeOrder($customer, 'shipping');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $shippingOrder), ['status' => 'shipping'])
+            ->assertRedirect();
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $completedOrder), ['status' => 'completed'])
+            ->assertRedirect();
+
+        Event::assertDispatched(
+            OrderStatusChanged::class,
+            fn (OrderStatusChanged $event) => $event->order->is($shippingOrder)
+                && $event->previousStatus === 'processing'
+                && $event->order->status === 'shipping'
+        );
+        Event::assertDispatched(
+            OrderStatusChanged::class,
+            fn (OrderStatusChanged $event) => $event->order->is($completedOrder)
+                && $event->previousStatus === 'shipping'
+                && $event->order->status === 'completed'
+        );
+        Event::assertDispatchedTimes(OrderStatusChanged::class, 2);
+    }
+
+    public function test_order_status_event_sends_a_notification_to_the_customer(): void
+    {
+        Notification::fake();
+        $customer = User::factory()->create();
+        $order = $this->makeOrder($customer, 'shipping');
+
+        OrderStatusChanged::dispatch($order, 'processing');
+
+        Notification::assertSentTo(
+            $customer,
+            OrderStatusUpdatedNotification::class,
+            fn (OrderStatusUpdatedNotification $notification) => $notification->order->is($order)
+        );
+    }
+
+    private function makeOrder(User $customer, string $status): Order
+    {
+        return $customer->orders()->create([
+            'recipient_name' => $customer->name,
+            'phone' => '0900000000',
+            'address' => 'Hà Nội',
+            'payment_method' => 'cod',
+            'payment_status' => 'unpaid',
+            'status' => $status,
+            'total' => 100000,
+        ]);
     }
 }

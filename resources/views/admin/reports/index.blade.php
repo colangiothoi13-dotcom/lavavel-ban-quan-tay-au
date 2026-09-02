@@ -43,12 +43,12 @@
     <section class="report-table-card">
         <h2>Chi tiết đơn hàng đã thanh toán</h2>
         <div class="table-scroll"><table>
-            <thead><tr><th>Mã đơn</th><th>Ngày đặt</th><th>Khách hàng</th><th>Số lượng</th><th>Thanh toán</th><th>Doanh thu</th></tr></thead>
+            <thead><tr><th>Mã đơn</th><th>Ngày đặt</th><th>Khách hàng</th><th>Số điện thoại</th><th>Số lượng</th><th>Thanh toán</th><th>Doanh thu</th></tr></thead>
             <tbody>
                 @forelse($orders as $order)
-                    <tr><td>#{{ $order->id }}</td><td>{{ $order->created_at->format('d/m/Y H:i') }}</td><td>{{ $order->recipient_name }}</td><td>{{ $order->items->sum('quantity') }}</td><td>{{ $order->payment_label }}</td><td><strong>{{ number_format($order->total, 0, ',', '.') }} đ</strong></td></tr>
+                    <tr><td>#{{ $order->id }}</td><td>{{ $order->created_at->format('d/m/Y H:i') }}</td><td>{{ $order->recipient_name }}</td><td><a href="tel:{{ $order->phone }}">{{ $order->phone }}</a></td><td>{{ $order->items->sum('quantity') }}</td><td>{{ $order->payment_label }}</td><td><strong>{{ number_format($order->total, 0, ',', '.') }} đ</strong></td></tr>
                 @empty
-                    <tr><td colspan="6" class="table-empty">Không có dữ liệu phù hợp.</td></tr>
+                    <tr><td colspan="7" class="table-empty">Không có dữ liệu phù hợp.</td></tr>
                 @endforelse
             </tbody>
         </table></div>

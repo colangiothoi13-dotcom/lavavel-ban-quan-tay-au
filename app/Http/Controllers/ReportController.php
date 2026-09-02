@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\ProductVariant;
+use App\Support\SimpleXlsx;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
@@ -34,35 +35,35 @@ class ReportController extends Controller
         ]);
     }
 
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): BinaryFileResponse
     {
         [$from, $to] = $this->dateRange($request);
         $orders = $this->reportableOrders($from, $to)
             ->with(['user:id,name,email', 'items'])
             ->oldest('created_at')
             ->get();
-        $fileName = "bao-cao-doanh-thu-{$from->toDateString()}-den-{$to->toDateString()}.csv";
+        $fileName = "bao-cao-doanh-thu-{$from->toDateString()}-den-{$to->toDateString()}.xlsx";
+        $rows = [['Mã đơn', 'Ngày đặt', 'Khách hàng', 'Số điện thoại', 'Email', 'Sản phẩm', 'Số lượng', 'Doanh thu', 'Thanh toán']];
 
-        return response()->streamDownload(function () use ($orders): void {
-            $output = fopen('php://output', 'w');
-            fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, ['Mã đơn', 'Ngày đặt', 'Khách hàng', 'Email', 'Sản phẩm', 'Số lượng', 'Doanh thu', 'Thanh toán'], ';');
-
-            foreach ($orders as $order) {
-                fputcsv($output, [
+        foreach ($orders as $order) {
+            $rows[] = [
                     $order->id,
                     $order->created_at->format('d/m/Y H:i'),
                     $order->user?->name ?? $order->recipient_name,
+                    $order->phone,
                     $order->user?->email ?? '',
                     $order->items->pluck('product_name')->unique()->implode(', '),
                     $order->items->sum('quantity'),
-                    (string) $order->total,
+                    (float) $order->total,
                     $order->payment_label,
-                ], ';');
-            }
+            ];
+        }
 
-            fclose($output);
-        }, $fileName, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        return response()->download(
+            SimpleXlsx::create($rows),
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        )->deleteFileAfterSend(true);
     }
 
     /** @return array{Carbon, Carbon} */

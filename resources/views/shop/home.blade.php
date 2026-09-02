@@ -164,7 +164,7 @@
                 @forelse($products as $product)
                     @php($variant = $product->variants->first())
                     @php($image = $product->image ? asset('storage/'.$product->image) : 'https://via.placeholder.com/500x600?text=No+Image')
-                    <a class="product-card" href="{{ auth()->check() && auth()->user()->isAdmin() ? route('products.show', $product) : route('shop.products.show', ['product' => $product, 'return_to' => request()->fullUrl().'#products']) }}">
+                    <a class="product-card" href="{{ $isAdmin ? route('products.edit', $product) : route('shop.products.show', ['product' => $product, 'return_to' => request()->fullUrl().'#products']) }}">
                         <img src="{{ $image }}" alt="{{ $product->name }}">
                         <div class="product-card-body">
                             <h3>{{ $product->name }}</h3>

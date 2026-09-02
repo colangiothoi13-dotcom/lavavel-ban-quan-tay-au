@@ -17,11 +17,14 @@
         .admin-sidebar .sidebar-menu li a:hover, .admin-sidebar .sidebar-menu li a.active { background-color: #3f3f3f; color: #ffffff; font-weight: bold; border-left: 4px solid #d1e189; }
         .admin-sidebar .sidebar-account { margin-top: auto; border-top: 1px solid #666; }
 
-        .admin-main { flex: 1; display: flex; flex-direction: column; background-color: #f5f5f5; }
+        .admin-main { min-width: 0; flex: 1; display: flex; flex-direction: column; background-color: #f5f5f5; }
         .admin-header { height: 70px; background-color: #1f2937; border-bottom: none; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
-        .admin-header .title { font-size: 20px; font-weight: bold; color: #ffffff; }
-        .admin-header .actions { display: flex; align-items: center; gap: 20px; }
-        .admin-header .actions a { font-size: 15px; font-weight: 500; color: #60a5fa; text-decoration: none; }
+        .admin-header .title { min-width: 0; flex: 1; font-size: 20px; font-weight: bold; color: #ffffff; }
+        .admin-header .actions { flex-shrink: 0; display: flex; align-items: center; gap: 26px; margin-left: auto; }
+        .admin-header .actions a { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 15px; font-weight: 500; color: #60a5fa; text-decoration: none; }
+        .admin-header .actions a img { width: 30px; height: 30px; border: 1px solid #fff; border-radius: 50%; object-fit: cover; }
+        .admin-header .actions a svg { width: 22px; height: 22px; flex-shrink: 0; fill: #8b5cf6; }
+        .admin-header .actions form { flex-shrink: 0; }
         .btn-admin-logout { background-color: #ef4444; color: white; padding: 8px 16px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; border-radius: 4px; transition: 0.2s; }
         .btn-admin-logout:hover { background-color: #dc2626; }
         
@@ -36,13 +39,14 @@
         .user-sidebar .sidebar-menu li a:hover, .user-sidebar .sidebar-menu li a.active { background-color: #3f3f3f; color: #ffffff; font-weight: bold; border-left: 4px solid #d1e189; }
         .user-sidebar .sidebar-account { margin-top: auto; border-top: 1px solid #666; }
 
-        .user-main { flex: 1; display: flex; flex-direction: column; background-color: #f1f5f9; }
+        .user-main { min-width: 0; flex: 1; display: flex; flex-direction: column; background-color: #f1f5f9; }
         .user-header { height: 70px; background-color: #1f2937; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
         .user-header .logo { font-size: 22px; font-weight: bold; color: #ffffff; text-transform: uppercase; text-decoration: none; flex-shrink: 0; }
-        .user-header .actions { display: flex; align-items: center; gap: 20px; }
+        .user-header .actions { flex-shrink: 0; display: flex; align-items: center; gap: 26px; margin-left: auto; }
+        .user-header .actions form { flex-shrink: 0; }
         
         /* CSS cho phần Xin chào, Avatar và Tên */
-        .header-user-profile { display: flex; align-items: center; gap: 8px; color: #60a5fa; text-decoration: none; font-weight: 500; font-size: 15px; }
+        .header-user-profile { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: #60a5fa; text-decoration: none; font-weight: 500; font-size: 15px; }
         .header-user-profile img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #fff; }
         .header-user-profile svg { width: 20px; height: 20px; fill: #8b5cf6; }
 
@@ -51,7 +55,7 @@
         .hero h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; color: #f8fafc; }
         .hero p { font-size: 15px; color: #94a3b8; max-width: 600px; margin: 0 auto 20px; }
         
-        .search-wrapper { position: relative; width: min(600px, 45vw); }
+        .search-wrapper { position: relative; width: min(600px, 45vw); margin-left: 24px; }
         .hero-search { display: flex; justify-content: center; width: 100%; margin: 0 auto; border-radius: 9999px; background: #fff; overflow: hidden; border: 1px solid #cbd5e1; }
         .hero-search input { flex: 1; padding: 12px 24px; border: none; background: transparent; font-size: 15px; outline: none; }
         .hero-search button { padding: 12px 30px; background: #b4860b; color: #fff; border: none; border-radius: 0 9999px 9999px 0; font-weight: 700; font-size: 14px; cursor: pointer; transition: 0.2s; }
@@ -91,7 +95,14 @@
             <div class="admin-header">
                 <div class="title">HỆ THỐNG QUẢN LÝ QUẦN TÂY ÂU</div>
                 <div class="actions">
-                    <a href="{{ route('admin.profile.show') }}">👤 {{ auth()->user()->name }}</a>
+                    <a href="{{ route('admin.profile.show') }}">
+                        @if(auth()->user()->avatar)
+                            <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Ảnh đại diện của {{ auth()->user()->name }}">
+                        @else
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        @endif
+                        <span>Xin chào! {{ auth()->user()->name }}</span>
+                    </a>
                     <form method="POST" action="{{ route('admin.logout') }}" style="display: inline;">
                         @csrf
                         <button type="submit" class="btn-admin-logout">Đăng xuất</button>
@@ -114,7 +125,7 @@
                 <li><a href="{{ route('shop.home') }}">🏡Trang chủ</a></li>                
                 <li><a href="{{ url('gio-hang') }}" class="{{ Request::is('gio-hang*') ? 'active' : '' }}">📦Giỏ hàng</a></li>
                 <li><a href="{{ route('user.addresses.index') }}" class="{{ Request::is('user/addresses*') ? 'active' : '' }}">📍 Địa chỉ</a></li>
-                <li><a href="{{ route('user.orders.index') }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}">🛍️ Đơn mua</a></li>
+                <li><a href="{{ route('user.orders.index', ['status' => 'completed']) }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}">🛍️ Đơn mua</a></li>
                 <li class="sidebar-account">
                     <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}">👤 Hồ sơ tài khoản</a>
                 </li>
@@ -140,13 +151,12 @@
                     {{-- THÊM PHẦN XIN CHÀO, AVATAR VÀ TÊN Ở ĐÂY --}}
                     @if(auth()->check())
                         <a href="{{ route('user.profile.show') }}" class="header-user-profile">
-                            <span>Xin chào!</span>
                             @if(auth()->user()->avatar)
                                 <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar">
                             @else
                                 <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                             @endif
-                            <span>{{ auth()->user()->name }}</span>
+                            <span>Xin chào! {{ auth()->user()->name }}</span>
                         </a>
                     @endif
 

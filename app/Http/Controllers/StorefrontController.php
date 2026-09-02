@@ -58,7 +58,7 @@ class StorefrontController
             'name_desc' => $query->orderByDesc('name'),
             'price_asc' => $query->orderBy('base_price'),
             'price_desc' => $query->orderByDesc('base_price'),
-            default => $query->latest(),
+            default => $query->latest('created_at')->orderByDesc('id'),
         };
 
         $products = $query->paginate(12)->withQueryString();
@@ -79,9 +79,11 @@ class StorefrontController
             ->limit(8)
             ->get(['id', 'name', 'image']);
 
+        $isAdmin = $request->user()?->isAdmin() ?? false;
+
         return response()->json($products->map(fn (Product $product) => [
             'name' => $product->name,
-            'url' => route('shop.products.show', $product),
+            'url' => $isAdmin ? route('products.edit', $product) : route('shop.products.show', $product),
             'image' => $product->image ? asset('storage/'.$product->image) : null,
         ])->values());
     }
@@ -142,7 +144,8 @@ class StorefrontController
             ])->withInput();
         }
 
-        $cart[$key] = $newQuantity;
+        unset($cart[$key]);
+        $cart = [$key => $newQuantity] + $cart;
         $request->session()->put('cart', $cart);
         $this->saveCartItem($request, $variant->id, $cart[$key]);
 
@@ -160,7 +163,9 @@ class StorefrontController
         $quantity = $request->validate(['quantity' => ['required', 'numeric', 'integer', 'min:1', 'max:9223372036854775807']])['quantity'];
         abort_if($variant->stock < $quantity, 422, 'Số lượng sản phẩm trong kho không đủ.');
         $cart = $request->session()->get('cart', []);
-        $cart[(string) $variant->id] = $quantity;
+        $key = (string) $variant->id;
+        unset($cart[$key]);
+        $cart = [$key => $quantity] + $cart;
         $request->session()->put('cart', $cart);
         $this->saveCartItem($request, $variant->id, $quantity);
 
@@ -179,15 +184,31 @@ class StorefrontController
         $oldKey = (string) $variant->id;
         $newKey = (string) $newVariant->id;
         $quantity = (int) ($cart[$oldKey] ?? 0);
+        $existingNewQuantity = (int) ($cart[$newKey] ?? 0);
+
+        // Giỏ của người dùng đăng nhập được lưu lâu dài trong database. Session có
+        // thể trống sau khi khởi động lại trình duyệt/server, dù trang giỏ hàng vẫn
+        // hiển thị các dòng lấy từ cart_items.
+        if ($request->user()) {
+            $savedQuantities = $request->user()->cartItems()
+                ->whereIn('product_variant_id', [$variant->id, $newVariant->id])
+                ->pluck('quantity', 'product_variant_id');
+
+            $quantity = (int) ($savedQuantities->get($variant->id) ?? $quantity);
+            $existingNewQuantity = (int) ($savedQuantities->get($newVariant->id) ?? $existingNewQuantity);
+        }
+
         abort_if($quantity < 1, 404);
-        abort_if($newVariant->stock < $quantity, 422, 'Số lượng biến thể mới trong kho không đủ.');
+        $newQuantity = $quantity + $existingNewQuantity;
+        abort_if($newVariant->stock < $newQuantity, 422, 'Số lượng biến thể mới trong kho không đủ.');
 
         unset($cart[$oldKey]);
-        $cart[$newKey] = $quantity;
+        unset($cart[$newKey]);
+        $cart = [$newKey => $newQuantity] + $cart;
         $request->session()->put('cart', $cart);
         if ($request->user()) {
             $request->user()->cartItems()->where('product_variant_id', $variant->id)->delete();
-            $this->saveCartItem($request, $newVariant->id, $quantity);
+            $this->saveCartItem($request, $newVariant->id, $newQuantity);
         }
 
         return back()->with('status', 'Đã đổi biến thể trong giỏ hàng.');
@@ -276,13 +297,29 @@ class StorefrontController
     {
         $cart = $request->session()->get('cart', []);
         if ($request->user()) {
-            $cart = $request->user()->cartItems()->pluck('quantity', 'product_variant_id')->all();
+            $savedCart = $request->user()->cartItems()
+                ->latest('updated_at')
+                ->pluck('quantity', 'product_variant_id')
+                ->all();
+            $orderedCart = [];
+            foreach (array_keys($cart) as $variantId) {
+                if (array_key_exists($variantId, $savedCart)) {
+                    $orderedCart[$variantId] = $savedCart[$variantId];
+                    unset($savedCart[$variantId]);
+                }
+            }
+            $cart = $orderedCart + $savedCart;
         }
         if ($selectedIds !== null) {
             $selectedIds = array_map('strval', $selectedIds);
             $cart = array_intersect_key($cart, array_flip($selectedIds));
         }
-        $variants = ProductVariant::with('product')->whereIn('id', array_keys($cart))->get();
+        $variantOrder = array_flip(array_map('strval', array_keys($cart)));
+        $variants = ProductVariant::with('product')
+            ->whereIn('id', array_keys($cart))
+            ->get()
+            ->sortBy(fn (ProductVariant $variant) => $variantOrder[(string) $variant->id] ?? PHP_INT_MAX)
+            ->values();
 
         return $variants->map(function (ProductVariant $variant) use ($cart) {
             $quantity = (int) ($cart[(string) $variant->id] ?? 0);

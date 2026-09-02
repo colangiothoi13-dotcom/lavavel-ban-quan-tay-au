@@ -11,6 +11,10 @@
         position: relative; 
     }
     .cart-container h2 { font-size: 24px; color: #1e293b; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 20px; }
+    .cart-product-group { margin-bottom: 22px; border-bottom: 2px solid #e2e8f0; }
+    .cart-product-group:last-of-type { margin-bottom: 0; }
+    .cart-product-heading { padding: 12px 15px; background: #f8fafc; border-left: 4px solid #b4860b; color: #1e293b; font-size: 16px; font-weight: 700; }
+    .cart-product-heading span { margin-left: 8px; color: #64748b; font-size: 13px; font-weight: 400; }
     /* Cart Item Row */
     .cart-row {
         display: flex;
@@ -100,6 +104,7 @@
     .empty-cart { padding: 40px 0; text-align: center; background: transparent; border-radius: 0; color: #64748b; }
     .variant-chip-form { display: inline-block; margin: 0; }
     .chip { font-family: inherit; }
+    .cart-container.is-loading { opacity: .65; pointer-events: none; }
     
 </style>
 
@@ -110,8 +115,20 @@
             Giỏ hàng đang trống. <a href="{{ route('shop.home') }}" style="color: #2563eb; text-decoration: none; font-weight: bold;">Tiếp tục mua sắm &rarr;</a>
         </div>
     @else
-        @foreach($items as $item)
-        <div class="cart-row">
+        @php
+            $groupedItems = $items->groupBy('variant.product_id');
+        @endphp
+        @foreach($groupedItems as $productItems)
+        @php
+            $groupProduct = $productItems->first()['variant']->product;
+        @endphp
+        <section class="cart-product-group" data-product-id="{{ $groupProduct->id }}">
+        <div class="cart-product-heading">
+            {{ $groupProduct->name }}
+            <span>{{ $productItems->count() }} phân loại</span>
+        </div>
+        @foreach($productItems as $item)
+        <div class="cart-row" data-product-id="{{ $item['variant']->product_id }}">
             <!-- Checkbox -->
             <div class="cart-col-checkbox">
                 <input type="checkbox" class="cart-checkbox" value="{{ $item['variant']->id }}" data-total="{{ $item['total'] }}" aria-label="Chọn {{ $item['variant']->product->name }}">
@@ -148,8 +165,11 @@
                                     <form method="POST" action="{{ route('cart.replace-variant', $item['variant']) }}" class="variant-chip-form">
                                         @csrf
                                         <input type="hidden" name="new_variant_id" value="{{ $v->id }}">
-                                        <button type="submit" class="chip {{ $v->id == $item['variant']->id ? 'active' : '' }}" {{ $v->id == $item['variant']->id ? 'disabled' : '' }}>
-                                        {{ $v->color }} / {{ $v->size }}
+                                        @php
+                                            $cannotSelect = $v->id == $item['variant']->id || $v->stock < $item['quantity'];
+                                        @endphp
+                                        <button type="submit" class="chip {{ $v->id == $item['variant']->id ? 'active' : '' }}" {{ $cannotSelect ? 'disabled' : '' }} title="{{ $v->stock < $item['quantity'] ? 'Không đủ hàng trong kho' : '' }}">
+                                        {{ $v->color }} / {{ $v->size }}{{ $v->stock < $item['quantity'] ? ' - Hết hàng' : '' }}
                                         </button>
                                     </form>
                                 @endforeach
@@ -170,9 +190,9 @@
                 <form method="POST" action="{{ route('cart.update', $item['variant']) }}" id="qty-form-{{ $item['variant']->id }}">
                     @csrf @method('PATCH')
                     <div class="qty-group">
-                        <button type="button" class="qty-btn" onclick="decreaseQty('{{ $item['variant']->id }}')">-</button>
-                        <input type="number" name="quantity" id="qty-input-{{ $item['variant']->id }}" class="qty-input" value="{{ $item['quantity'] }}" min="1" max="{{ $item['variant']->stock }}" onchange="this.form.submit()">
-                        <button type="button" class="qty-btn" onclick="increaseQty('{{ $item['variant']->id }}', {{ $item['variant']->stock }})">+</button>
+                        <button type="button" class="qty-btn qty-decrease">-</button>
+                        <input type="number" name="quantity" id="qty-input-{{ $item['variant']->id }}" class="qty-input" value="{{ $item['quantity'] }}" min="1" max="{{ $item['variant']->stock }}">
+                        <button type="button" class="qty-btn qty-increase">+</button>
                     </div>
                 </form>
             </div>
@@ -189,6 +209,8 @@
             </div>
         </div>
         @endforeach
+        </section>
+        @endforeach
         <!-- Phần tổng kết cuối trang -->
         <div class="cart-footer">
             <div style="display: flex; gap: 15px; align-items: center;">
@@ -204,22 +226,6 @@
 
 <!-- Script hỗ trợ tăng giảm số lượng & popup phân loại -->
 <script>
-    function decreaseQty(id) {
-        let input = document.getElementById('qty-input-' + id);
-        let val = parseInt(input.value);
-        if (val > 1) {
-            input.value = val - 1;
-            document.getElementById('qty-form-' + id).submit();
-        }
-    }
-    function increaseQty(id, maxStock) {
-        let input = document.getElementById('qty-input-' + id);
-        let val = parseInt(input.value);
-        if (val < maxStock) {
-            input.value = val + 1;
-            document.getElementById('qty-form-' + id).submit();
-        }
-    }
     function toggleVariantModal(id) {
         let modal = document.getElementById('modal-' + id);
         document.querySelectorAll('.variant-modal').forEach(m => {
@@ -240,15 +246,101 @@
             }
         });
 
-        document.getElementById('selected-total').textContent = total.toLocaleString('vi-VN');
+        const selectedTotal = document.getElementById('selected-total');
         const checkoutLink = document.getElementById('checkout-link');
+        if (!selectedTotal || !checkoutLink) return;
+        selectedTotal.textContent = total.toLocaleString('vi-VN');
         checkoutLink.href = selectedIds.length
             ? '{{ route('checkout') }}?' + new URLSearchParams(selectedIds.map(id => ['selected_items[]', id])).toString()
             : '{{ route('checkout') }}';
     }
 
-    document.querySelectorAll('.cart-checkbox').forEach(function (checkbox) {
-        checkbox.addEventListener('change', updateSelectedTotal);
+    async function submitCartForm(form) {
+        const container = document.querySelector('.cart-container');
+        if (!container || container.classList.contains('is-loading')) return;
+
+        const selectedVariants = new Set(
+            Array.from(container.querySelectorAll('.cart-checkbox:checked'))
+                .map(checkbox => checkbox.value)
+        );
+        const sourceRow = form.closest('.cart-row');
+        const sourceWasSelected = sourceRow?.querySelector('.cart-checkbox')?.checked || false;
+        const sourceProductId = sourceRow?.dataset.productId;
+        const isReplacingVariant = form.classList.contains('variant-chip-form');
+        const previousGroupVariants = new Set(
+            Array.from(container.querySelectorAll(`.cart-row[data-product-id="${sourceProductId}"] .cart-checkbox`))
+                .map(checkbox => checkbox.value)
+        );
+
+        container.classList.add('is-loading');
+        try {
+            const response = await fetch(form.action, {
+                method: form.method,
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json, text/html' }
+            });
+            if (!response.ok) {
+                let message = 'Không thể cập nhật giỏ hàng.';
+                if ((response.headers.get('content-type') || '').includes('application/json')) {
+                    const errorData = await response.json();
+                    message = Object.values(errorData.errors || {}).flat()[0] || errorData.message || message;
+                }
+                throw new Error(message);
+            }
+
+            const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const newContainer = parsed.querySelector('.cart-container');
+            if (!newContainer) throw new Error('Dữ liệu giỏ hàng không hợp lệ.');
+
+            newContainer.querySelectorAll('.cart-row').forEach(row => {
+                const checkbox = row.querySelector('.cart-checkbox');
+                if (checkbox && selectedVariants.has(checkbox.value)) checkbox.checked = true;
+            });
+            if (isReplacingVariant && sourceWasSelected) {
+                const replacement = Array.from(newContainer.querySelectorAll(`.cart-row[data-product-id="${sourceProductId}"] .cart-checkbox`))
+                    .find(checkbox => !previousGroupVariants.has(checkbox.value));
+                if (replacement) replacement.checked = true;
+            }
+            container.replaceWith(newContainer);
+            updateSelectedTotal();
+        } catch (error) {
+            container.classList.remove('is-loading');
+            alert(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+        }
+    }
+
+    document.addEventListener('submit', function (event) {
+        const form = event.target.closest('.cart-container form');
+        if (!form) return;
+        event.preventDefault();
+        submitCartForm(form);
+    });
+
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('.qty-decrease, .qty-increase');
+        if (!button) return;
+        const form = button.closest('form');
+        const input = form.querySelector('.qty-input');
+        const current = Number(input.value) || 1;
+        const minimum = Number(input.min) || 1;
+        const maximum = Number(input.max) || Number.MAX_SAFE_INTEGER;
+        const next = button.classList.contains('qty-increase')
+            ? Math.min(current + 1, maximum)
+            : Math.max(current - 1, minimum);
+        if (next === current) return;
+        input.value = next;
+        form.requestSubmit();
+    });
+
+    document.addEventListener('change', function (event) {
+        if (event.target.matches('.cart-checkbox')) updateSelectedTotal();
+        if (event.target.matches('.qty-input')) {
+            const input = event.target;
+            const minimum = Number(input.min) || 1;
+            const maximum = Number(input.max) || Number.MAX_SAFE_INTEGER;
+            input.value = Math.min(Math.max(Number(input.value) || minimum, minimum), maximum);
+            input.form.requestSubmit();
+        }
     });
     updateSelectedTotal();
 </script>

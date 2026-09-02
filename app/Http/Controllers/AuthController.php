@@ -151,7 +151,7 @@ class AuthController extends Controller
             $item->save();
         }
 
-        $request->session()->put('cart', $user->cartItems()->pluck('quantity', 'product_variant_id')->all());
+        $request->session()->put('cart', $user->cartItems()->latest('updated_at')->pluck('quantity', 'product_variant_id')->all());
     }
 
     private function sendRegistrationOtp(Request $request): void
