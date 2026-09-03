@@ -32,18 +32,26 @@
         .admin-card { background-color: #ffffff; padding: 25px; border-radius: 4px; min-height: 100%; border-top: 4px solid #333; }
 
         /* ================= PHẦN DÀNH CHO USER ================= */
-        .user-sidebar { width: 250px; background-color: #535353; color: white; display: flex; flex-direction: column; flex-shrink: 0; }
+        .user-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 1001; width: min(300px, 86vw); background-color: #535353; color: white; display: flex; flex-direction: column; transform: translateX(-100%); visibility: hidden; box-shadow: 10px 0 30px rgba(15, 23, 42, .24); transition: transform .25s ease, visibility .25s ease; }
+        .user-sidebar.is-open { transform: translateX(0); visibility: visible; }
         .user-sidebar .sidebar-logo { height: 70px; background-color: #d1e189; color: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border-bottom: 1px solid #444; }
         .user-sidebar .sidebar-menu { list-style: none; display: flex; flex-direction: column; flex: 1; }
         .user-sidebar .sidebar-menu li a { display: block; padding: 16px 20px; color: #d1d1d1; text-decoration: none; font-size: 14px; transition: 0.2s; }
         .user-sidebar .sidebar-menu li a:hover, .user-sidebar .sidebar-menu li a.active { background-color: #3f3f3f; color: #ffffff; font-weight: bold; border-left: 4px solid #d1e189; }
         .user-sidebar .sidebar-account { margin-top: auto; border-top: 1px solid #666; }
 
-        .user-main { min-width: 0; flex: 1; display: flex; flex-direction: column; background-color: #f1f5f9; }
+        .user-menu-backdrop { position: fixed; inset: 0; z-index: 1000; border: 0; background: rgba(15, 23, 42, .55); opacity: 0; visibility: hidden; cursor: pointer; transition: opacity .25s ease, visibility .25s ease; }
+        .user-menu-backdrop.is-open { opacity: 1; visibility: visible; }
+        .user-main { width: 100%; min-width: 0; flex: 1; display: flex; flex-direction: column; background-color: #f1f5f9; }
         .user-header { height: 70px; background-color: #1f2937; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
+        .user-menu-toggle { width: 42px; height: 42px; margin-right: 16px; border: 1px solid #475569; border-radius: 7px; background: #334155; color: #fff; font-size: 25px; line-height: 1; cursor: pointer; flex-shrink: 0; transition: background .2s, border-color .2s; }
+        .user-menu-toggle:hover, .user-menu-toggle:focus-visible { background: #475569; border-color: #64748b; outline: none; }
         .user-header .logo { font-size: 22px; font-weight: bold; color: #ffffff; text-transform: uppercase; text-decoration: none; flex-shrink: 0; }
         .user-header .actions { flex-shrink: 0; display: flex; align-items: center; gap: 26px; margin-left: auto; }
         .user-header .actions form { flex-shrink: 0; }
+        .header-cart-link { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; color: #fff; text-decoration: none; transition: background .2s, color .2s; }
+        .header-cart-link:hover, .header-cart-link:focus-visible { background: #334155; color: #d1e189; outline: none; }
+        .header-cart-link svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         
         /* CSS cho phần Xin chào, Avatar và Tên */
         .header-user-profile { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: #60a5fa; text-decoration: none; font-weight: 500; font-size: 15px; }
@@ -71,6 +79,20 @@
 
         .user-content-area { flex: 1; padding: 30px; overflow-y: auto; }
         .user-card { background-color: #ffffff; padding: 30px; border-radius: 12px; min-height: 100%; }
+        @media (max-width: 900px) {
+            .user-header { padding: 0 16px; }
+            .user-header .logo { font-size: 17px; }
+            .search-wrapper { width: auto; min-width: 0; flex: 1; margin-left: 12px; }
+            .user-header .actions { gap: 10px; margin-left: 12px; }
+            .header-user-profile span { display: none; }
+            .user-content-area { padding: 18px; }
+            .user-card { padding: 20px; }
+        }
+        @media (max-width: 640px) {
+            .user-header .logo, .search-wrapper { display: none; }
+            .user-header .actions { margin-left: auto; }
+            .btn-user-logout { padding: 8px 10px; }
+        }
     </style>
 </head>
 <body>
@@ -119,7 +141,7 @@
 
     @else
         {{-- ================= GIAO DIỆN USER ================= --}}
-        <div class="user-sidebar">
+        <nav class="user-sidebar" id="user-navigation" data-user-menu aria-label="Điều hướng khách hàng" aria-hidden="true">
             <div class="sidebar-logo">TRANG KHÁCH HÀNG</div>
             <ul class="sidebar-menu">
                 <li><a href="{{ route('shop.home') }}">🏡Trang chủ</a></li>                
@@ -130,10 +152,12 @@
                     <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}">👤 Hồ sơ tài khoản</a>
                 </li>
             </ul>
-        </div>
+        </nav>
+        <button type="button" class="user-menu-backdrop" data-user-menu-backdrop aria-label="Đóng menu" tabindex="-1"></button>
 
         <div class="user-main">
             <div class="user-header">
+                <button type="button" class="user-menu-toggle" data-user-menu-toggle aria-controls="user-navigation" aria-expanded="false" aria-label="Mở menu">☰</button>
                 <a href="{{ route('shop.home') }}" class="logo">QUẦN TÂY ÂU</a>
                 
                 <div class="search-wrapper">
@@ -150,6 +174,13 @@
                 <div class="actions">
                     {{-- THÊM PHẦN XIN CHÀO, AVATAR VÀ TÊN Ở ĐÂY --}}
                     @if(auth()->check())
+                        <a href="{{ route('cart.index') }}" class="header-cart-link" data-user-cart-link aria-label="Giỏ hàng" title="Giỏ hàng">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M3 3h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"></path>
+                                <circle cx="10" cy="20" r="1"></circle>
+                                <circle cx="18" cy="20" r="1"></circle>
+                            </svg>
+                        </a>
                         <a href="{{ route('user.profile.show') }}" class="header-user-profile">
                             @if(auth()->user()->avatar)
                                 <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar">
@@ -219,6 +250,33 @@
     @endif
 
     <script>
+        (function () {
+            const toggle = document.querySelector('[data-user-menu-toggle]');
+            const menu = document.querySelector('[data-user-menu]');
+            const backdrop = document.querySelector('[data-user-menu-backdrop]');
+            if (!toggle || !menu || !backdrop) return;
+
+            function setMenu(open) {
+                menu.classList.toggle('is-open', open);
+                backdrop.classList.toggle('is-open', open);
+                menu.setAttribute('aria-hidden', String(!open));
+                toggle.setAttribute('aria-expanded', String(open));
+                toggle.setAttribute('aria-label', open ? 'Đóng menu' : 'Mở menu');
+                backdrop.tabIndex = open ? 0 : -1;
+            }
+
+            toggle.addEventListener('click', function () {
+                setMenu(toggle.getAttribute('aria-expanded') !== 'true');
+            });
+            backdrop.addEventListener('click', function () { setMenu(false); });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+                    setMenu(false);
+                    toggle.focus();
+                }
+            });
+        }());
+
         (function () {
             const input = document.getElementById('product-search-input');
             const suggestions = document.getElementById('product-search-suggestions');

@@ -18,7 +18,7 @@ class AdminOrderController extends Controller
     {
         $status = $request->string('status')->toString();
         $paymentStatus = $request->string('payment_status')->toString();
-        $orders = Order::with(['user', 'items'])
+        $orders = Order::with(['user', 'items.variant.product'])
             ->when(in_array($status, self::STATUSES, true), fn ($query) => $query->where('status', $status))
             ->when(in_array($paymentStatus, ['paid', 'unpaid'], true), fn ($query) => $query->where('payment_status', $paymentStatus))
             ->activeFirst()
