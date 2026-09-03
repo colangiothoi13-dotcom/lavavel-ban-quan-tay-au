@@ -55,10 +55,8 @@ class OrderController
 
         $order->load(['items.variant.product']);
         $subtotal = (float) $order->items->sum(fn ($item) => (float) $item->price * $item->quantity);
-        $shippingFee = max(0, (float) $order->total - $subtotal);
-        $voucherDiscount = max(0, $subtotal + $shippingFee - (float) $order->total);
-
-        return view('orders.show', compact('order', 'subtotal', 'shippingFee', 'voucherDiscount'));
+        $shippingFee = (float) ($order->shipping_fee ?? max(0, (float) $order->total - $subtotal));
+        return view('orders.show', compact('order', 'subtotal', 'shippingFee'));
     }
 
     public function reorder(Request $request, Order $order): RedirectResponse

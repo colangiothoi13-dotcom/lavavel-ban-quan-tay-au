@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    protected $fillable = ['recipient_name', 'phone', 'address', 'payment_method', 'payment_status', 'status', 'cancellation_reason', 'completed_at', 'archived_at', 'total'];
+    protected $fillable = ['recipient_name', 'phone', 'address', 'payment_method', 'payment_status', 'status', 'cancellation_reason', 'completed_at', 'archived_at', 'total', 'shipping_fee', 'ghn_district_id', 'ghn_ward_code', 'ghn_order_code'];
 
     protected function casts(): array
     {
@@ -61,6 +61,40 @@ class Order extends Model
             ->orderByRaw("CASE WHEN status IN ('completed', 'cancelled') THEN 1 ELSE 0 END")
             ->orderByDesc('created_at')
             ->orderByDesc('id');
+    }
+
+    public function scopeDeletableByAdmin(Builder $query): Builder
+    {
+        $cutoff = now()->subDays(7);
+
+        return $query->where(function (Builder $deletableQuery) use ($cutoff): void {
+            $deletableQuery
+                ->where('status', 'cancelled')
+                ->orWhere(function (Builder $completedQuery) use ($cutoff): void {
+                    $completedQuery
+                        ->where('status', 'completed')
+                        ->where(function (Builder $dateQuery) use ($cutoff): void {
+                            $dateQuery
+                                ->where('completed_at', '<=', $cutoff)
+                                ->orWhere(function (Builder $legacyQuery) use ($cutoff): void {
+                                    $legacyQuery->whereNull('completed_at')->where('updated_at', '<=', $cutoff);
+                                });
+                        });
+                });
+        });
+    }
+
+    public function canBeDeletedByAdmin(): bool
+    {
+        if ($this->status === 'cancelled') {
+            return true;
+        }
+
+        $completedDate = $this->completed_at ?? $this->updated_at;
+
+        return $this->status === 'completed'
+            && $completedDate !== null
+            && $completedDate->lte(now()->subDays(7));
     }
 
     public function getPaymentLabelAttribute(): string

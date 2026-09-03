@@ -19,14 +19,14 @@ class AdminOrderController extends Controller
         $status = $request->string('status')->toString();
         $paymentStatus = $request->string('payment_status')->toString();
         $orders = Order::with(['user', 'items'])
-            ->visibleInOrderHistory()
             ->when(in_array($status, self::STATUSES, true), fn ($query) => $query->where('status', $status))
             ->when(in_array($paymentStatus, ['paid', 'unpaid'], true), fn ($query) => $query->where('payment_status', $paymentStatus))
             ->activeFirst()
             ->get();
         $pendingCount = Order::query()->visibleInOrderHistory()->where('status', 'pending')->count();
+        $deletableCount = Order::query()->deletableByAdmin()->count();
 
-        return view('admin.orders.index', compact('orders', 'status', 'paymentStatus', 'pendingCount'));
+        return view('admin.orders.index', compact('orders', 'status', 'paymentStatus', 'pendingCount', 'deletableCount'));
     }
 
     public function confirmAll(): RedirectResponse
@@ -95,5 +95,32 @@ class AdminOrderController extends Controller
         $order->update(['payment_status' => $paymentStatus]);
 
         return back()->with('status', 'Đã cập nhật trạng thái thanh toán.');
+    }
+
+    public function destroy(Order $order): RedirectResponse
+    {
+        DB::transaction(function () use ($order): void {
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->getKey());
+            abort_unless(
+                $lockedOrder->canBeDeletedByAdmin(),
+                422,
+                'Chỉ có thể xóa đơn đã hủy hoặc đơn đã hoàn thành đủ 7 ngày.'
+            );
+            $lockedOrder->delete();
+        });
+
+        return redirect()->route('admin.orders.index')->with('status', 'Đã xóa đơn hàng khỏi hệ thống.');
+    }
+
+    public function destroyAll(): RedirectResponse
+    {
+        $deletedCount = DB::transaction(fn (): int => Order::query()->deletableByAdmin()->delete());
+
+        if ($deletedCount === 0) {
+            return back()->with('status', 'Không có đơn hàng nào đủ điều kiện để xóa.');
+        }
+
+        return redirect()->route('admin.orders.index')
+            ->with('status', "Đã xóa {$deletedCount} đơn hàng đủ điều kiện.");
     }
 }

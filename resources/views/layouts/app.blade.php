@@ -175,6 +175,49 @@
         </div>
     @endif
 
+    @if(request()->routeIs('checkout'))
+    <script>
+        // Trang thanh toán cũ gọi trực tiếp Photon và có thể bị CORS chặn.
+        // Chuyển riêng yêu cầu đó qua endpoint Laravel có cache và nguồn dự phòng.
+        (function () {
+            const nativeFetch = window.fetch.bind(window);
+            const searchUrl = @json(route('user.addresses.search'));
+            window.fetch = async function (resource, options) {
+                const requestedUrl = typeof resource === 'string' ? resource : resource.url;
+                let parsed;
+                try { parsed = new URL(requestedUrl, window.location.href); } catch { return nativeFetch(resource, options); }
+                if (parsed.hostname !== 'photon.komoot.io') return nativeFetch(resource, options);
+
+                const ward = document.querySelector('#ward');
+                const province = document.querySelector('#province');
+                const params = new URLSearchParams({
+                    q: parsed.searchParams.get('q') || '',
+                    ward: ward?.selectedOptions[0]?.text || '',
+                    province: province?.selectedOptions[0]?.text || ''
+                });
+                const response = await nativeFetch(`${searchUrl}?${params}`, {
+                    ...options,
+                    headers: { ...(options?.headers || {}), Accept: 'application/json' }
+                });
+                if (!response.ok) return response;
+                const payload = await response.json();
+                const features = (payload.results || []).map(result => ({
+                    geometry: { coordinates: [result.longitude, result.latitude] },
+                    properties: {
+                        name: result.street,
+                        district: ward?.selectedOptions[0]?.text || '',
+                        state: province?.selectedOptions[0]?.text || ''
+                    }
+                }));
+                return new Response(JSON.stringify({ features }), {
+                    status: response.status,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            };
+        }());
+    </script>
+    @endif
+
     <script>
         (function () {
             const input = document.getElementById('product-search-input');

@@ -9,6 +9,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StorefrontController;
+use App\Http\Controllers\GHNController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
@@ -24,6 +25,12 @@ Route::post('/gio-hang/{variant}/doi-bien-the', [StorefrontController::class, 'r
 Route::delete('/gio-hang/{variant}', [StorefrontController::class, 'removeFromCart'])->name('cart.remove');
 Route::get('/thanh-toan', [StorefrontController::class, 'checkout'])->name('checkout');
 Route::post('/thanh-toan', [StorefrontController::class, 'placeOrder'])->name('checkout.place');
+Route::prefix('ghn')->middleware(['auth', 'throttle:60,1'])->group(function () {
+    Route::get('/provinces', [GHNController::class, 'provinces'])->name('ghn.provinces');
+    Route::get('/districts', [GHNController::class, 'districts'])->name('ghn.districts');
+    Route::get('/wards', [GHNController::class, 'wards'])->name('ghn.wards');
+    Route::post('/fee', [GHNController::class, 'fee'])->name('ghn.fee');
+});
 
 Route::prefix('buyer')->group(function () {
     Route::middleware('guest')->group(function () {
@@ -50,6 +57,7 @@ Route::prefix('user')->middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show'])->name('user.profile.show');
     Route::put('/profile', [ProfileController::class, 'save'])->name('user.profile.update');
     Route::get('/addresses', [AddressController::class, 'index'])->name('user.addresses.index');
+    Route::get('/addresses/search', [AddressController::class, 'search'])->middleware('throttle:30,1')->name('user.addresses.search');
     Route::post('/addresses', [AddressController::class, 'store'])->name('user.addresses.store');
     Route::patch('/addresses/{address}/default', [AddressController::class, 'makeDefault'])->name('user.addresses.default');
     Route::delete('/addresses/{address}', [AddressController::class, 'destroy'])->name('user.addresses.destroy');
@@ -70,6 +78,8 @@ Route::prefix('admin')->group(function () {
             Route::patch('/orders/confirm-all', [AdminOrderController::class, 'confirmAll'])->name('admin.orders.confirm-all');
             Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('admin.orders.status');
             Route::patch('/orders/{order}/payment', [AdminOrderController::class, 'updatePayment'])->name('admin.orders.payment');
+            Route::delete('/orders', [AdminOrderController::class, 'destroyAll'])->name('admin.orders.destroy-all');
+            Route::delete('/orders/{order}', [AdminOrderController::class, 'destroy'])->name('admin.orders.destroy');
             Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');
             Route::get('/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
             Route::resource('categories', CategoryController::class);

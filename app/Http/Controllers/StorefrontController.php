@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Services\GHNService;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -9,9 +10,13 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class StorefrontController
 {
+    public function __construct(private readonly GHNService $ghn) {}
+
     public function home(Request $request)
     {
         $layout = $request->user()?->isAdmin() ? 'layouts.app' : 'layouts.shop';
@@ -236,7 +241,7 @@ class StorefrontController
 
         $addresses = $request->user()?->addresses()->latest('is_default')->latest()->get() ?? collect();
 
-        return view('shop.checkout', compact('items', 'addresses'));
+        return view('shop.checkout-ghn', compact('items', 'addresses'));
     }
 
     public function placeOrder(Request $request)
@@ -247,25 +252,56 @@ class StorefrontController
             'address' => ['nullable', 'string', 'max:500', 'required_without:saved_address_id'],
             'saved_address_id' => ['nullable', 'integer', 'exists:addresses,id'],
             'payment_method' => ['required', 'in:cash,bank_transfer'],
+            'ghn_district_id' => ['nullable', 'integer', 'min:1'],
+            'ghn_ward_code' => ['nullable', 'string', 'max:20'],
         ]);
         if (! empty($data['saved_address_id'])) {
             $savedAddress = $request->user()?->addresses()->findOrFail($data['saved_address_id']);
             $data['name'] = $savedAddress->recipient_name;
             $data['phone'] = $savedAddress->phone;
             $data['address'] = $savedAddress->full_address;
+            $data['ghn_district_id'] = $savedAddress->ghn_district_id;
+            $data['ghn_ward_code'] = $savedAddress->ghn_ward_code;
         }
         $selectedIds = $request->input('selected_items', []);
         $items = $this->cartItems($request, $selectedIds);
         abort_if($items->isEmpty(), 422, 'Vui lòng chọn ít nhất một sản phẩm.');
 
-        DB::transaction(function () use ($items, $request, $data) {
+        if (empty($data['ghn_district_id']) || empty($data['ghn_ward_code'])) {
+            throw ValidationException::withMessages([
+                'address' => 'Địa chỉ chưa có mã khu vực GHN. Vui lòng chọn "Thêm địa chỉ khác" và chọn đủ Tỉnh/Quận/Phường.',
+            ]);
+        }
+
+        $subtotal = (int) $items->sum('total');
+        try {
+            $fee = $this->ghn->calculateFee([
+                'from_district_id' => (int) config('services.ghn.from_district_id'),
+                'to_district_id' => (int) $data['ghn_district_id'],
+                'to_ward_code' => $data['ghn_ward_code'],
+                'service_type_id' => (int) config('services.ghn.service_type_id', 2),
+                'insurance_value' => min($subtotal, 5000000),
+                'weight' => (int) config('services.ghn.default_weight', 500),
+                'length' => (int) config('services.ghn.default_length', 20),
+                'width' => (int) config('services.ghn.default_width', 15),
+                'height' => (int) config('services.ghn.default_height', 10),
+            ]);
+            $shippingFee = (int) ($fee['total'] ?? 0);
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages(['shipping' => $exception->getMessage()]);
+        }
+
+        DB::transaction(function () use ($items, $request, $data, $subtotal, $shippingFee) {
             $order = $request->user()->orders()->create([
                 'recipient_name' => $data['name'],
                 'phone' => $data['phone'],
                 'address' => $data['address'],
                 'payment_method' => $data['payment_method'],
                 'payment_status' => 'unpaid',
-                'total' => $items->sum('total'),
+                'total' => $subtotal + $shippingFee,
+                'shipping_fee' => $shippingFee,
+                'ghn_district_id' => $data['ghn_district_id'],
+                'ghn_ward_code' => $data['ghn_ward_code'],
             ]);
             foreach ($items as $item) {
                 $variant = ProductVariant::lockForUpdate()->findOrFail($item['variant']->id);

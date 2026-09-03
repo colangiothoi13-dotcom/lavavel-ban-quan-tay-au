@@ -113,6 +113,7 @@
     const savedData = @json($addresses->keyBy('id')->map(fn ($item) => ['address' => $item->full_address]));
     const map = L.map('address-map', { zoomControl: true }).setView([16.047079, 108.206230], 5);
     let marker = null;
+    let accuracyCircle = null;
     let selectedPlace = false;
     let searchTimer = null;
     let searchController = null;
@@ -135,6 +136,7 @@
         placeholder.hidden = false;
         closeSuggestions();
         if (marker) { marker.remove(); marker = null; }
+        if (accuracyCircle) { accuracyCircle.remove(); accuracyCircle = null; }
     };
 
     async function loadProvinces() {
@@ -168,12 +170,12 @@
         }
     });
 
-    ward.addEventListener('change', () => {
-        resetAddress();
-        street.disabled = !ward.value;
-        street.placeholder = ward.value ? 'Nhập số nhà, tên đường hoặc địa điểm' : 'Chọn Phường/Xã trước';
-        say(ward.value ? 'Gõ địa chỉ, các địa điểm quanh Phường/Xã sẽ được gợi ý.' : 'OpenStreetMap sẽ gợi ý địa chỉ sau khi bạn chọn Phường/Xã.');
-        if (ward.value) street.focus();
+    ward.addEventListener('change',async()=>{
+        street.value='';street.disabled=!ward.value;selectedPlace=null;closeSuggestions();placeholder.hidden=false;
+        if(!ward.value)return;
+        setHint(`Chỉ tìm địa chỉ thuộc ${ward.selectedOptions[0].text}.`);
+        try {const results=await fetch(`${urls.search}?${new URLSearchParams({q:`${ward.selectedOptions[0].text}, ${district.selectedOptions[0].text}, ${province.selectedOptions[0].text}, Việt Nam`,ward:ward.selectedOptions[0].text,province:province.selectedOptions[0].text})}`,{headers:{Accept:'application/json'}}).then(r=>r.json()).then(p=>p.results||[]);if(results[0]){map.setView([results[0].latitude,results[0].longitude],15);placeholder.hidden=true;}}catch{}
+        street.focus();
     });
 
     function featureLabel(feature) {
@@ -187,10 +189,25 @@
         selectedPlace = true;
         closeSuggestions();
         if (marker) marker.remove();
-        marker = L.marker([lat, lng]).addTo(map);
-        map.setView([lat, lng], 17);
+        if (accuracyCircle) accuracyCircle.remove();
+        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        accuracyCircle = L.circle([lat, lng], {
+            radius: 10,
+            color: '#f45135',
+            fillColor: '#f45135',
+            fillOpacity: .12,
+            weight: 2
+        }).addTo(map);
+        marker.on('drag', event => accuracyCircle.setLatLng(event.target.getLatLng()));
+        marker.on('dragend', event => {
+            const point = event.target.getLatLng();
+            accuracyCircle.setLatLng(point);
+            map.setView(point, 19);
+            say('Đã cập nhật ghim. Vòng tròn thể hiện bán kính 10 m.');
+        });
+        map.setView([lat, lng], 19);
         placeholder.hidden = true;
-        say('Đã chọn vị trí trên OpenStreetMap.');
+        say('Đã ghim vị trí. Có thể kéo ghim để chỉnh; vòng tròn thể hiện bán kính 10 m.');
     }
 
     street.addEventListener('input', () => {

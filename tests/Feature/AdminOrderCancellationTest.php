@@ -149,6 +149,88 @@ class AdminOrderCancellationTest extends TestCase
         );
     }
 
+    public function test_admin_cannot_delete_an_active_order(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $product = Product::query()->create(['name' => 'Quần thử', 'base_price' => 100000]);
+        $variant = ProductVariant::query()->create([
+            'product_id' => $product->id,
+            'color' => 'Đen',
+            'size' => 'M',
+            'stock' => 4,
+            'price' => 100000,
+        ]);
+        $order = $this->makeOrder($customer, 'processing');
+        $order->items()->create([
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => 'Đen / M',
+            'quantity' => 2,
+            'price' => 100000,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.orders.destroy', $order))
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id]);
+        $this->assertDatabaseHas('order_items', ['order_id' => $order->id]);
+        $this->assertSame(4, $variant->fresh()->stock);
+    }
+
+    public function test_admin_can_delete_cancelled_and_seven_day_old_completed_orders(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $cancelled = $this->makeOrder($customer, 'cancelled');
+        $completed = $this->makeOrder($customer, 'completed');
+        $completed->forceFill(['completed_at' => now()->subDays(7)->subMinute()])->save();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.orders.destroy', $cancelled))
+            ->assertRedirect(route('admin.orders.index'));
+        $this->actingAs($admin)
+            ->delete(route('admin.orders.destroy', $completed))
+            ->assertRedirect(route('admin.orders.index'));
+
+        $this->assertDatabaseMissing('orders', ['id' => $cancelled->id]);
+        $this->assertDatabaseMissing('orders', ['id' => $completed->id]);
+    }
+
+    public function test_admin_can_delete_all_eligible_orders_without_deleting_recent_or_active_orders(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $cancelled = $this->makeOrder($customer, 'cancelled');
+        $oldCompleted = $this->makeOrder($customer, 'completed');
+        $oldCompleted->forceFill(['completed_at' => now()->subDays(8)])->save();
+        $recentCompleted = $this->makeOrder($customer, 'completed');
+        $active = $this->makeOrder($customer, 'shipping');
+
+        $this->actingAs($admin)
+            ->delete(route('admin.orders.destroy-all'))
+            ->assertRedirect(route('admin.orders.index'))
+            ->assertSessionHas('status', 'Đã xóa 2 đơn hàng đủ điều kiện.');
+
+        $this->assertDatabaseMissing('orders', ['id' => $cancelled->id]);
+        $this->assertDatabaseMissing('orders', ['id' => $oldCompleted->id]);
+        $this->assertDatabaseHas('orders', ['id' => $recentCompleted->id]);
+        $this->assertDatabaseHas('orders', ['id' => $active->id]);
+    }
+
+    public function test_customer_cannot_delete_an_order_through_the_admin_route(): void
+    {
+        $customer = User::factory()->create();
+        $order = $this->makeOrder($customer, 'pending');
+
+        $this->actingAs($customer)
+            ->delete(route('admin.orders.destroy', $order))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id]);
+    }
+
     private function makeOrder(User $customer, string $status): Order
     {
         return $customer->orders()->create([

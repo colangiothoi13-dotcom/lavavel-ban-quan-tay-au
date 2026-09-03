@@ -55,7 +55,7 @@ class CompletedOrderRetentionTest extends TestCase
         $this->assertNull($order->fresh()->archived_at);
     }
 
-    public function test_cancelled_orders_are_hidden_after_two_days_for_admin_and_user(): void
+    public function test_cancelled_orders_are_hidden_for_users_but_remain_manageable_by_admin(): void
     {
         $user = User::factory()->create();
         $admin = User::factory()->create(['role' => 'admin']);
@@ -75,7 +75,7 @@ class CompletedOrderRetentionTest extends TestCase
             ->assertViewHas('orders', fn ($orders) => $orders->isEmpty());
         $this->actingAs($admin)
             ->get(route('admin.orders.index'))
-            ->assertViewHas('orders', fn ($orders) => $orders->isEmpty());
+            ->assertViewHas('orders', fn ($orders) => $orders->contains('id', $order->id));
 
         $this->artisan('orders:archive-expired')->assertSuccessful();
         $this->assertNotNull($order->fresh()->archived_at);
