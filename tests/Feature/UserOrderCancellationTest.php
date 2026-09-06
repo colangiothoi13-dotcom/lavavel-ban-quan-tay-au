@@ -73,30 +73,43 @@ class UserOrderCancellationTest extends TestCase
         $this->assertSame('pending', $order->fresh()->status);
     }
 
-    public function test_user_can_cancel_processing_and_shipping_orders(): void
+    public function test_user_can_cancel_processing_but_not_shipping_orders(): void
     {
         $user = User::factory()->create();
 
-        foreach (['processing', 'shipping'] as $status) {
-            $order = $user->orders()->create([
-                'recipient_name' => $user->name,
-                'phone' => '0900000000',
-                'address' => 'Hà Nội',
-                'payment_method' => 'cash',
-                'payment_status' => 'unpaid',
-                'status' => $status,
-                'total' => 100000,
-            ]);
+        $processingOrder = $user->orders()->create([
+            'recipient_name' => $user->name, 'phone' => '0900000000', 'address' => 'Hà Nội',
+            'payment_method' => 'cash', 'payment_status' => 'unpaid', 'status' => 'processing', 'total' => 100000,
+        ]);
+        $this->actingAs($user)
+            ->patch(route('user.orders.cancel', $processingOrder), ['cancellation_reason' => 'Tôi không còn nhu cầu mua sản phẩm.'])
+            ->assertRedirect();
+        $this->assertSame('cancelled', $processingOrder->fresh()->status);
 
-            $this->actingAs($user)
-                ->patch(route('user.orders.cancel', $order), [
-                    'cancellation_reason' => 'Tôi không còn nhu cầu mua sản phẩm.',
-                ])
-                ->assertRedirect()
-                ->assertSessionHas('status');
+        $shippingOrder = $user->orders()->create([
+            'recipient_name' => $user->name, 'phone' => '0900000000', 'address' => 'Hà Nội',
+            'payment_method' => 'cash', 'payment_status' => 'unpaid', 'status' => 'shipping', 'total' => 100000,
+        ]);
+        $this->actingAs($user)
+            ->patch(route('user.orders.cancel', $shippingOrder), ['cancellation_reason' => 'Tôi không còn nhu cầu mua sản phẩm.'])
+            ->assertStatus(422);
+        $this->assertSame('shipping', $shippingOrder->fresh()->status);
+    }
 
-            $this->assertSame('cancelled', $order->fresh()->status);
-        }
+    public function test_cancelling_a_paid_pre_shipping_order_marks_refund_pending(): void
+    {
+        $user = User::factory()->create();
+        $order = $user->orders()->create([
+            'recipient_name' => $user->name, 'phone' => '0900000000', 'address' => 'Hà Nội',
+            'payment_method' => 'momo', 'payment_status' => 'paid', 'status' => 'processing', 'total' => 100000,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('user.orders.cancel', $order), ['cancellation_reason' => 'Tôi không còn nhu cầu mua sản phẩm.'])
+            ->assertRedirect();
+
+        $this->assertSame('cancelled', $order->fresh()->status);
+        $this->assertSame('refund_pending', $order->fresh()->payment_status);
     }
 
     public function test_user_must_give_a_reason_before_cancelling_an_order(): void

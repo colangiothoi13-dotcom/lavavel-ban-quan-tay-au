@@ -4,12 +4,17 @@
 @php
     $title = match ($status ?? '') {
         'success' => 'Thanh toán MoMo thành công',
+        'paid_refund_pending' => 'Thanh toán thành công, cần hoàn tiền thừa',
+        'refund_pending' => 'Thanh toán cần xử lý hoàn tiền',
+        'refunded' => 'Giao dịch MoMo đã hoàn tiền',
         'cancelled' => 'Thanh toán MoMo đã hủy',
         'failed' => 'Thanh toán MoMo thất bại',
         default => 'Đang chờ xác nhận MoMo',
     };
     $class = match ($status ?? '') {
         'success' => 'success',
+        'paid_refund_pending' => 'warning',
+        'refund_pending' => 'warning',
         'cancelled' => 'danger',
         'failed' => 'danger',
         default => 'warning',
@@ -23,7 +28,7 @@
     <div class="momo-result-card">
         <h2>Đơn hàng #{{ $order->id }}</h2>
         <p>Phương thức: <strong>{{ $order->payment_label }}</strong></p>
-        <p>Trạng thái thanh toán: <strong>{{ $order->payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}</strong></p>
+        <p>Trạng thái thanh toán: <strong>{{ $order->payment_status_label }}</strong></p>
         <p>Tổng tiền: <strong>{{ number_format($order->total, 0, ',', '.') }} đ</strong></p>
     </div>
 
@@ -32,7 +37,7 @@
         <a class="button" href="{{ route('user.orders.index') }}">Quay lại đơn mua</a>
     </div>
 
-    @if($order->payment_status !== 'paid' && $order->isMomoOrder())
+    @if($order->can_retry_momo_payment)
         <form method="POST" action="{{ route('user.orders.momo.retry', $order) }}">
             @csrf
             <button class="button button-primary" type="submit">Thanh toán lại với MoMo</button>

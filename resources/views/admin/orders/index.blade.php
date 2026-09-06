@@ -8,7 +8,7 @@
             @if($deletableCount > 0)
                 <form method="POST" action="{{ route('admin.orders.destroy-all') }}">
                     @csrf @method('DELETE')
-                    <button class="button button-danger" type="submit" onclick="return confirm('Xóa vĩnh viễn tất cả {{ $deletableCount }} đơn đủ điều kiện? Thao tác này không thể hoàn tác.')">Xóa tất cả ({{ $deletableCount }})</button>
+                    <button class="button button-danger" type="submit" onclick="return confirm('Lưu trữ tất cả {{ $deletableCount }} đơn đủ điều kiện? Dữ liệu giao dịch vẫn được giữ lại.')">Lưu trữ tất cả ({{ $deletableCount }})</button>
                 </form>
             @endif
             @if($pendingCount > 0)
@@ -50,7 +50,10 @@
             <select name="payment_status">
                 <option value="">Tất cả</option>
                 <option value="paid" @selected($paymentStatus === 'paid')>Đã thanh toán</option>
+                <option value="paid_refund_pending" @selected($paymentStatus === 'paid_refund_pending')>Đã thanh toán, chờ hoàn tiền thừa</option>
                 <option value="unpaid" @selected($paymentStatus === 'unpaid')>Chưa thanh toán</option>
+                <option value="refund_pending" @selected($paymentStatus === 'refund_pending')>Chờ hoàn tiền</option>
+                <option value="refunded" @selected($paymentStatus === 'refunded')>Đã hoàn tiền</option>
             </select>
         </label>
         <button type="submit">Lọc đơn hàng</button>
@@ -66,7 +69,7 @@
                 <div class="order-info">
                     <div><small>Khách hàng</small><strong>{{ $order->user?->name ?? $order->recipient_name }}</strong><span>{{ $order->phone }}</span></div>
                     <div><small>Địa chỉ giao hàng</small><span>{{ $order->address }}</span></div>
-                    <div><small>Thanh toán</small><strong class="payment-{{ $order->payment_status }}">{{ $order->payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}</strong><span>{{ $order->payment_label }}</span></div>
+                    <div><small>Thanh toán</small><strong class="payment-{{ $order->payment_status }}">{{ $order->payment_status_label }}</strong><span>{{ $order->payment_label }}</span></div>
                     <div><small>Tổng tiền</small><strong class="total">{{ number_format($order->total, 0, ',', '.') }} đ</strong><span>{{ $order->items->sum('quantity') }} sản phẩm</span></div>
                 </div>
                 <div class="items">
@@ -95,7 +98,24 @@
                 @if($order->status === 'cancelled' && $order->cancellation_reason)
                     <div class="admin-cancel-reason"><strong>Lý do hủy:</strong> {{ $order->cancellation_reason }}</div>
                 @endif
+                @if($order->status === 'cancelled' && $order->stock_return_status === 'pending_return')
+                    <div class="admin-cancel-reason"><strong>Kho:</strong> Chờ xác nhận đã nhận lại hàng.</div>
+                @endif
                 <footer>
+                    @if($order->status === 'cancelled' && $order->stock_return_status === 'pending_return')
+                        <form method="POST" action="{{ route('admin.orders.cancellation-settlement', $order) }}">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="action" value="stock_return">
+                            <button class="button button-light" type="submit">Xác nhận đã nhận hàng</button>
+                        </form>
+                    @endif
+                    @if(in_array($order->payment_status, ['refund_pending', 'paid_refund_pending'], true))
+                        <form method="POST" action="{{ route('admin.orders.cancellation-settlement', $order) }}">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="action" value="refund">
+                            <button class="button button-light" type="submit">Xác nhận đã hoàn tiền</button>
+                        </form>
+                    @endif
                     @if(! $order->isMomoOrder())
                         <form method="POST" action="{{ route('admin.orders.payment', $order) }}">
                             @csrf @method('PATCH')
@@ -113,10 +133,10 @@
                     @if($order->canBeDeletedByAdmin())
                         <form method="POST" action="{{ route('admin.orders.destroy', $order) }}">
                             @csrf @method('DELETE')
-                            <button class="button button-danger" type="submit" onclick="return confirm('Bạn chắc chắn muốn xóa vĩnh viễn đơn #{{ $order->id }}? Thao tác này không thể hoàn tác.')">Xóa đơn</button>
+                            <button class="button button-danger" type="submit" onclick="return confirm('Bạn chắc chắn muốn lưu trữ đơn #{{ $order->id }}? Dữ liệu giao dịch vẫn được giữ lại.')">Lưu trữ đơn</button>
                         </form>
                     @elseif($order->status === 'completed')
-                        <small class="delete-hint">Có thể xóa sau {{ ($order->completed_at ?? $order->updated_at)->copy()->addDays(7)->format('d/m/Y H:i') }}</small>
+                        <small class="delete-hint">Có thể lưu trữ sau {{ ($order->completed_at ?? $order->updated_at)->copy()->addDays(7)->format('d/m/Y H:i') }}</small>
                     @endif
                 </footer>
             </article>

@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Models\MomoPaymentAttempt;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -26,6 +27,7 @@ class MomoPaymentService
             'ipn_route' => 'momo.ipn',
             'sandbox' => true,
             'timeout' => 15,
+            'payment_timeout' => 30,
         ]);
     }
 
@@ -36,6 +38,14 @@ class MomoPaymentService
         $requestId = (string) Str::ulid();
         $momoOrderId = $this->buildOrderId($order->id, $requestId);
         $amount = (int) round((float) $order->total);
+        $expiresAt = now()->addMinutes((int) ($this->config['payment_timeout'] ?? 30));
+        $attempt = $order->momoPaymentAttempts()->create([
+            'momo_order_id' => $momoOrderId,
+            'request_id' => $requestId,
+            'amount' => $amount,
+            'status' => 'pending',
+            'expires_at' => $expiresAt,
+        ]);
         $payload = [
             'partnerCode' => $this->config['partner_code'],
             'accessKey' => $this->config['access_key'],
@@ -45,7 +55,7 @@ class MomoPaymentService
             'orderInfo' => "Thanh toán đơn hàng #{$order->id}",
             'redirectUrl' => $successRoute,
             'ipnUrl' => $failRoute,
-            'extraData' => base64_encode((string) $order->id),
+            'extraData' => base64_encode(json_encode(['order_id' => (string) $order->id], JSON_THROW_ON_ERROR)),
             'requestType' => 'captureWallet',
             'lang' => 'vi',
         ];
@@ -61,6 +71,7 @@ class MomoPaymentService
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
+            $attempt->update(['status' => 'failed']);
             throw new RuntimeException('Không thể tạo yêu cầu thanh toán MoMo lúc này. Vui lòng thử lại.');
         }
 
@@ -72,13 +83,15 @@ class MomoPaymentService
                 'result_code' => $data['resultCode'] ?? null,
                 'message' => $message,
             ]);
+            $attempt->update(['status' => 'failed']);
             throw new RuntimeException($message);
         }
 
         $order->update([
             'payment_reference' => $momoOrderId,
             'momo_order_id' => $momoOrderId,
-            'payment_expires_at' => now()->addMinutes((int) ($this->config['payment_timeout'] ?? 30)),
+            'momo_request_id' => $requestId,
+            'payment_expires_at' => $expiresAt,
             'payment_method' => Order::PAYMENT_METHOD_MOMO,
         ]);
 
@@ -114,7 +127,7 @@ class MomoPaymentService
             default => (string) ($payload['message'] ?? 'Thanh toán MoMo thất bại.'),
         };
 
-        return ['status' => $status, 'message' => $message, 'momo_order_id' => $momoOrderId];
+        return ['status' => $status, 'message' => $message, 'momo_order_id' => $momoOrderId, 'payload' => $payload];
     }
 
     public function finalizeFromIpn(array $payload): array
@@ -131,6 +144,7 @@ class MomoPaymentService
             'result_code' => $resultCode,
             'momo_order_id' => (string) ($payload['orderId'] ?? ''),
             'message' => (string) ($payload['message'] ?? ''),
+            'payload' => $payload,
         ];
     }
 
@@ -141,6 +155,19 @@ class MomoPaymentService
         }
 
         return null;
+    }
+
+    public function callbackMatchesAttempt(MomoPaymentAttempt $attempt, array $payload): bool
+    {
+        $decodedExtraData = base64_decode((string) ($payload['extraData'] ?? ''), true);
+        $extraData = $decodedExtraData === false ? null : json_decode($decodedExtraData, true);
+
+        return (string) ($payload['partnerCode'] ?? '') === (string) $this->config['partner_code']
+            && (string) ($payload['orderId'] ?? '') === (string) $attempt->momo_order_id
+            && (string) ($payload['requestId'] ?? '') === (string) $attempt->request_id
+            && (int) ($payload['amount'] ?? -1) === (int) $attempt->amount
+            && is_array($extraData)
+            && (string) ($extraData['order_id'] ?? '') === (string) $attempt->order_id;
     }
 
     public function isConfigured(): bool
@@ -184,27 +211,35 @@ class MomoPaymentService
 
     private function verifySignature(array $payload): bool
     {
-        if (
-            ! isset($payload['signature'])
-            || ! isset($payload['orderId'])
-            || ! isset($payload['resultCode'])
-            || ! isset($payload['requestId'])
-        ) {
+        $required = [
+            'signature', 'amount', 'extraData', 'message',
+            'orderId', 'orderInfo', 'orderType', 'partnerCode', 'payType',
+            'requestId', 'responseTime', 'resultCode', 'transId',
+        ];
+        if (array_diff($required, array_keys($payload)) !== []) {
             return false;
         }
 
-        $expected = $this->signCallback((string) $payload['resultCode'], (string) $payload['orderId'], (string) ($payload['orderInfo'] ?? ''), (string) ($payload['requestId'] ?? ''));
+        $expected = $this->signCallback($payload);
         return hash_equals($expected, (string) $payload['signature']);
     }
 
-    private function signCallback(string $resultCode, string $orderId, string $orderInfo, string $requestId): string
+    private function signCallback(array $payload): string
     {
         $parts = [
             "accessKey={$this->config['access_key']}",
-            "orderInfo={$orderInfo}",
-            "orderId={$orderId}",
-            "requestId={$requestId}",
-            "resultCode={$resultCode}",
+            "amount={$payload['amount']}",
+            "extraData={$payload['extraData']}",
+            "message={$payload['message']}",
+            "orderId={$payload['orderId']}",
+            "orderInfo={$payload['orderInfo']}",
+            "orderType={$payload['orderType']}",
+            "partnerCode={$payload['partnerCode']}",
+            "payType={$payload['payType']}",
+            "requestId={$payload['requestId']}",
+            "responseTime={$payload['responseTime']}",
+            "resultCode={$payload['resultCode']}",
+            "transId={$payload['transId']}",
         ];
 
         return hash_hmac('sha256', implode('&', $parts), (string) $this->config['secret_key']);

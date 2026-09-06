@@ -255,6 +255,19 @@
             : '{{ route('checkout') }}';
     }
 
+    function syncCartTotals(container) {
+        container.querySelectorAll('.cart-row').forEach(function (row) {
+            const priceText = row.querySelector('.cart-col-price')?.textContent || '';
+            const quantity = Number(row.querySelector('.qty-input')?.value) || 0;
+            const price = Number(priceText.replace(/[^0-9]/g, '')) || 0;
+            const total = price * quantity;
+            const checkbox = row.querySelector('.cart-checkbox');
+            const rowTotal = row.querySelector('.cart-col-total');
+            if (checkbox) checkbox.dataset.total = String(total);
+            if (rowTotal) rowTotal.textContent = total.toLocaleString('vi-VN') + 'đ';
+        });
+    }
+
     async function submitCartForm(form) {
         const container = document.querySelector('.cart-container');
         if (!container || container.classList.contains('is-loading')) return;
@@ -301,6 +314,7 @@
                     .find(checkbox => !previousGroupVariants.has(checkbox.value));
                 if (replacement) replacement.checked = true;
             }
+            syncCartTotals(newContainer);
             container.replaceWith(newContainer);
             updateSelectedTotal();
         } catch (error) {

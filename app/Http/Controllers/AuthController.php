@@ -15,6 +15,8 @@ class AuthController extends Controller
     private const OTP_LIFETIME_MINUTES = 15;
     private const OTP_MAX_ATTEMPTS = 5;
     private const OTP_SEND_LIMIT = 3;
+    private const AUTH_MAX_ATTEMPTS = 5;
+    private const REGISTRATION_SEND_LIMIT = 3;
 
     public function showLogin()
     {
@@ -28,10 +30,17 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $loginKey = $this->authRateLimitKey($request, strtolower($credentials['email']));
+        if (RateLimiter::tooManyAttempts($loginKey, self::AUTH_MAX_ATTEMPTS)) {
+            return back()->withErrors(['email' => 'Thông tin đăng nhập không đúng hoặc bạn đã thử quá nhiều lần. Vui lòng thử lại sau.'])->withInput();
+        }
+
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            RateLimiter::hit($loginKey, self::OTP_LIFETIME_MINUTES * 60);
             return back()->withErrors(['email' => 'Email hoặc mật khẩu không đúng.'])->withInput();
         }
 
+        RateLimiter::clear($loginKey);
         $request->session()->regenerate();
 
         return redirect()->route($request->user()->isAdmin() ? 'admin.dashboard' : 'home')
@@ -55,6 +64,11 @@ class AuthController extends Controller
         ]);
 
         $data['email'] = strtolower($data['email']);
+        $registrationSendKey = $this->registrationRateLimitKey($request, $data['email']).':send';
+        if (RateLimiter::tooManyAttempts($registrationSendKey, self::REGISTRATION_SEND_LIMIT)) {
+            return back()->withErrors(['email' => 'Bạn đã yêu cầu quá nhiều mã xác minh. Vui lòng thử lại sau.'])->withInput();
+        }
+        RateLimiter::hit($registrationSendKey, 60);
         if (User::where('email', $data['email'])->exists()) {
             return redirect()->route('password.request')
                 ->withErrors(['email' => 'Email này đã tồn tại. Bạn hãy dùng chức năng quên mật khẩu.']);
@@ -78,7 +92,13 @@ class AuthController extends Controller
 
     public function resendRegistrationOtp(Request $request)
     {
-        abort_unless($request->session()->has('registration.data.email'), 404);
+        $email = (string) $request->session()->get('registration.data.email', '');
+        abort_unless($email !== '', 404);
+        $registrationSendKey = $this->registrationRateLimitKey($request, $email).':send';
+        if (RateLimiter::tooManyAttempts($registrationSendKey, self::REGISTRATION_SEND_LIMIT)) {
+            return back()->withErrors(['otp' => 'Bạn đã yêu cầu quá nhiều mã xác minh. Vui lòng thử lại sau.']);
+        }
+        RateLimiter::hit($registrationSendKey, 60);
 
         try {
             $this->sendRegistrationOtp($request);
@@ -104,14 +124,20 @@ class AuthController extends Controller
         abort_unless($registration, 404);
 
         $data = $request->validate(['otp' => ['required', 'digits:6']]);
+        $registrationKey = $this->registrationRateLimitKey($request, (string) $registration['data']['email']).':verify';
+        if (RateLimiter::tooManyAttempts($registrationKey, self::AUTH_MAX_ATTEMPTS)) {
+            return back()->withErrors(['otp' => 'Bạn đã nhập sai quá số lần cho phép. Vui lòng gửi lại mã mới.']);
+        }
         if (now()->timestamp >= (int) $registration['expires_at']) {
             return back()->withErrors(['otp' => 'Mã xác minh đã hết hạn. Vui lòng bấm gửi lại để nhận mã mới.']);
         }
 
         if (! hash_equals((string) $registration['otp'], (string) $data['otp'])) {
+            RateLimiter::hit($registrationKey, self::OTP_LIFETIME_MINUTES * 60);
             return back()->withErrors(['otp' => 'Mã xác minh không đúng. Vui lòng dùng mã mới nhất trong email.']);
         }
 
+        RateLimiter::clear($registrationKey);
         if (User::where('email', $registration['data']['email'])->exists()) {
             $request->session()->forget('registration');
 
@@ -291,5 +317,15 @@ class AuthController extends Controller
     private function passwordResetRateLimitKey(Request $request, string $email): string
     {
         return 'password-reset:'.sha1($email.'|'.$request->ip());
+    }
+
+    private function authRateLimitKey(Request $request, string $email): string
+    {
+        return 'auth:'.sha1($email.'|'.$request->ip());
+    }
+
+    private function registrationRateLimitKey(Request $request, string $email): string
+    {
+        return 'registration:'.sha1($email.'|'.$request->ip());
     }
 }

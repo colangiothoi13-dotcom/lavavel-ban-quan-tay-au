@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\OrderStatusChanged;
 use App\Models\Order;
-use App\Models\ProductVariant;
+use App\Services\Orders\OrderCancellationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +21,8 @@ class AdminOrderController extends Controller
         'cancelled' => ['cancelled'],
     ];
 
+    public function __construct(private readonly OrderCancellationService $cancellationService) {}
+
     public function index(Request $request): View
     {
         $status = $request->string('status')->toString();
@@ -30,16 +32,17 @@ class AdminOrderController extends Controller
         }
 
         $statusCounts = collect([
-            '' => (int) Order::query()->count(),
-            'pending' => (int) Order::query()->where('status', 'pending')->count(),
-            'processing' => (int) Order::query()->where('status', 'processing')->count(),
-            'shipping' => (int) Order::query()->where('status', 'shipping')->count(),
-            'completed' => (int) Order::query()->where('status', 'completed')->count(),
-            'cancelled' => (int) Order::query()->where('status', 'cancelled')->count(),
+            '' => (int) Order::query()->whereNull('archived_at')->count(),
+            'pending' => (int) Order::query()->whereNull('archived_at')->where('status', 'pending')->count(),
+            'processing' => (int) Order::query()->whereNull('archived_at')->where('status', 'processing')->count(),
+            'shipping' => (int) Order::query()->whereNull('archived_at')->where('status', 'shipping')->count(),
+            'completed' => (int) Order::query()->whereNull('archived_at')->where('status', 'completed')->count(),
+            'cancelled' => (int) Order::query()->whereNull('archived_at')->where('status', 'cancelled')->count(),
         ]);
         $orders = Order::with(['user', 'items.variant.product'])
+            ->whereNull('archived_at')
             ->when(in_array($status, self::STATUSES, true), fn ($query) => $query->where('status', $status))
-            ->when(in_array($paymentStatus, ['paid', 'unpaid'], true), fn ($query) => $query->where('payment_status', $paymentStatus))
+            ->when(in_array($paymentStatus, ['paid', 'paid_refund_pending', 'unpaid', 'refund_pending', 'refunded'], true), fn ($query) => $query->where('payment_status', $paymentStatus))
             ->activeFirst()
             ->get();
         $pendingCount = Order::query()->visibleInOrderHistory()->where('status', 'pending')->count();
@@ -72,6 +75,17 @@ class AdminOrderController extends Controller
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $status = $request->validate(['status' => ['required', 'in:pending,processing,shipping,completed,cancelled']])['status'];
+        if ($status === 'cancelled') {
+            if ($order->status !== 'cancelled') {
+                $this->cancellationService->cancel(
+                    $order,
+                    $order->cancellation_reason ?? 'Đơn hàng được hủy bởi quản trị viên.',
+                    true
+                );
+            }
+
+            return back()->with('status', 'Đã hủy đơn hàng theo quy trình vận hành.');
+        }
         $previousStatus = $order->status;
 
         DB::transaction(function () use ($order, $status, &$previousStatus): void {
@@ -87,17 +101,6 @@ class AdminOrderController extends Controller
             );
 
             $shouldFallbackToCash = $status === 'shipping' && $lockedOrder->canAutoFallbackToCash();
-
-            if ($status === 'cancelled' && $lockedOrder->status !== 'cancelled') {
-                $lockedOrder->items()
-                    ->whereNotNull('product_variant_id')
-                    ->get(['product_variant_id', 'quantity'])
-                    ->each(function ($item): void {
-                        ProductVariant::query()
-                            ->whereKey($item->product_variant_id)
-                            ->increment('stock', $item->quantity);
-                    });
-            }
 
             $lockedOrder->update([
                     'status' => $status,
@@ -138,6 +141,19 @@ class AdminOrderController extends Controller
         return back()->with('status', 'Đã cập nhật trạng thái thanh toán.');
     }
 
+    public function settleCancellation(Request $request, Order $order): RedirectResponse
+    {
+        $action = $request->validate(['action' => ['required', 'in:stock_return,refund']])['action'];
+        if ($action === 'stock_return') {
+            $this->cancellationService->settleStockReturn($order);
+            return back()->with('status', 'Đã xác nhận nhận lại hàng và hoàn tồn kho.');
+        }
+
+        $this->cancellationService->completeRefund($order);
+
+        return back()->with('status', 'Đã xác nhận hoàn tiền cho khách hàng.');
+    }
+
     public function destroy(Order $order): RedirectResponse
     {
         DB::transaction(function () use ($order): void {
@@ -147,21 +163,23 @@ class AdminOrderController extends Controller
                 422,
                 'Chỉ có thể xóa đơn đã hủy hoặc đơn đã hoàn thành đủ 7 ngày.'
             );
-            $lockedOrder->delete();
+            $lockedOrder->update(['archived_at' => now()]);
         });
 
-        return redirect()->route('admin.orders.index')->with('status', 'Đã xóa đơn hàng khỏi hệ thống.');
+        return redirect()->route('admin.orders.index')->with('status', 'Đã lưu trữ đơn hàng. Dữ liệu giao dịch vẫn được giữ lại.');
     }
 
     public function destroyAll(): RedirectResponse
     {
-        $deletedCount = DB::transaction(fn (): int => Order::query()->deletableByAdmin()->delete());
+        $archivedCount = DB::transaction(fn (): int => Order::query()
+            ->deletableByAdmin()
+            ->update(['archived_at' => now()]));
 
-        if ($deletedCount === 0) {
-            return back()->with('status', 'Không có đơn hàng nào đủ điều kiện để xóa.');
+        if ($archivedCount === 0) {
+            return back()->with('status', 'Không có đơn hàng nào đủ điều kiện để lưu trữ.');
         }
 
         return redirect()->route('admin.orders.index')
-            ->with('status', "Đã xóa {$deletedCount} đơn hàng đủ điều kiện.");
+            ->with('status', "Đã lưu trữ {$archivedCount} đơn hàng đủ điều kiện.");
     }
 }

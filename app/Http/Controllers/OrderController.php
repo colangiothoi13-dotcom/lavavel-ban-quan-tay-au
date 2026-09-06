@@ -3,14 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
-use App\Models\ProductVariant;
+use App\Services\Orders\OrderCancellationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class OrderController
 {
+    public function __construct(private readonly OrderCancellationService $cancellationService) {}
+
     public function index(Request $request): View
     {
         $status = $request->string('status')->toString();
@@ -111,31 +112,10 @@ class OrderController
             'cancellation_reason.max' => 'Lý do hủy đơn không được dài quá 500 ký tự.',
         ])['cancellation_reason'];
 
-        DB::transaction(function () use ($request, $order, $reason): void {
-            $lockedOrder = $request->user()->orders()
-                ->whereKey($order->getKey())
-                ->lockForUpdate()
-                ->firstOrFail();
+        $requiresRefund = $this->cancellationService->cancel($order, $reason, false);
 
-            if (! in_array($lockedOrder->status, ['pending', 'processing', 'shipping'], true)) {
-                abort(422, 'Không thể hủy đơn hàng đã hoàn thành hoặc đã hủy.');
-            }
-
-            $lockedOrder->items()
-                ->whereNotNull('product_variant_id')
-                ->get(['product_variant_id', 'quantity'])
-                ->each(function ($item): void {
-                    ProductVariant::query()
-                        ->whereKey($item->product_variant_id)
-                        ->increment('stock', $item->quantity);
-                });
-
-            $lockedOrder->update([
-                'status' => 'cancelled',
-                'cancellation_reason' => trim($reason),
-            ]);
-        });
-
-        return back()->with('status', 'Đã hủy đơn hàng và hoàn lại số lượng sản phẩm vào kho.');
+        return back()->with('status', $requiresRefund
+            ? 'Đã ghi nhận yêu cầu hủy. Đơn cần được xử lý hoàn tiền trước khi kết thúc.'
+            : 'Đã hủy đơn hàng và hoàn lại số lượng sản phẩm vào kho.');
     }
 }

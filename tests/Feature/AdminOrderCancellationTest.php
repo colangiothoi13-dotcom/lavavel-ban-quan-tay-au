@@ -179,7 +179,52 @@ class AdminOrderCancellationTest extends TestCase
         $this->assertSame(4, $variant->fresh()->stock);
     }
 
-    public function test_admin_can_delete_cancelled_and_seven_day_old_completed_orders(): void
+    public function test_admin_cannot_archive_a_cancelled_order_waiting_for_refund_or_return(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $refundOrder = $customer->orders()->create([
+            'recipient_name' => $customer->name,
+            'phone' => '0900000000',
+            'address' => 'Hà Nội',
+            'payment_method' => 'momo',
+            'payment_status' => 'refund_pending',
+            'status' => 'cancelled',
+            'stock_return_status' => 'returned',
+            'total' => 100000,
+        ]);
+        $returnOrder = $this->makeOrder($customer, 'cancelled');
+        $returnOrder->forceFill(['stock_return_status' => 'pending_return'])->save();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.orders.destroy', $refundOrder))
+            ->assertStatus(422);
+        $this->actingAs($admin)
+            ->delete(route('admin.orders.destroy', $returnOrder))
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('orders', ['id' => $refundOrder->id]);
+        $this->assertDatabaseHas('orders', ['id' => $returnOrder->id]);
+        $this->assertNull($refundOrder->fresh()->archived_at);
+        $this->assertNull($returnOrder->fresh()->archived_at);
+    }
+
+    public function test_all_archive_paths_keep_orders_with_unsettled_payment_attempts(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $order = $this->makeOrder(User::factory()->create(), 'cancelled');
+        $order->update(['payment_status' => 'refunded', 'updated_at' => now()->subDays(10)]);
+        $order->momoPaymentAttempts()->create([
+            'momo_order_id' => 'REFUND-LINK', 'request_id' => 'REFUND-REQUEST',
+            'amount' => 100000, 'status' => 'refund_pending',
+        ]);
+        $this->actingAs($admin)->delete(route('admin.orders.destroy', $order))->assertStatus(422);
+        $this->assertFalse(Order::query()->deletableByAdmin()->whereKey($order->id)->exists());
+        $this->artisan('orders:archive-expired')->assertSuccessful();
+        $this->assertNull($order->fresh()->archived_at);
+    }
+
+    public function test_admin_can_archive_cancelled_and_seven_day_old_completed_orders(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $customer = User::factory()->create();
@@ -189,16 +234,19 @@ class AdminOrderCancellationTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(route('admin.orders.destroy', $cancelled))
-            ->assertRedirect(route('admin.orders.index'));
+            ->assertRedirect(route('admin.orders.index'))
+            ->assertSessionHas('status', 'Đã lưu trữ đơn hàng. Dữ liệu giao dịch vẫn được giữ lại.');
         $this->actingAs($admin)
             ->delete(route('admin.orders.destroy', $completed))
             ->assertRedirect(route('admin.orders.index'));
 
-        $this->assertDatabaseMissing('orders', ['id' => $cancelled->id]);
-        $this->assertDatabaseMissing('orders', ['id' => $completed->id]);
+        $this->assertDatabaseHas('orders', ['id' => $cancelled->id]);
+        $this->assertDatabaseHas('orders', ['id' => $completed->id]);
+        $this->assertNotNull($cancelled->fresh()->archived_at);
+        $this->assertNotNull($completed->fresh()->archived_at);
     }
 
-    public function test_admin_can_delete_all_eligible_orders_without_deleting_recent_or_active_orders(): void
+    public function test_admin_can_archive_all_eligible_orders_without_archiving_recent_or_active_orders(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $customer = User::factory()->create();
@@ -211,10 +259,12 @@ class AdminOrderCancellationTest extends TestCase
         $this->actingAs($admin)
             ->delete(route('admin.orders.destroy-all'))
             ->assertRedirect(route('admin.orders.index'))
-            ->assertSessionHas('status', 'Đã xóa 2 đơn hàng đủ điều kiện.');
+            ->assertSessionHas('status', 'Đã lưu trữ 2 đơn hàng đủ điều kiện.');
 
-        $this->assertDatabaseMissing('orders', ['id' => $cancelled->id]);
-        $this->assertDatabaseMissing('orders', ['id' => $oldCompleted->id]);
+        $this->assertDatabaseHas('orders', ['id' => $cancelled->id]);
+        $this->assertDatabaseHas('orders', ['id' => $oldCompleted->id]);
+        $this->assertNotNull($cancelled->fresh()->archived_at);
+        $this->assertNotNull($oldCompleted->fresh()->archived_at);
         $this->assertDatabaseHas('orders', ['id' => $recentCompleted->id]);
         $this->assertDatabaseHas('orders', ['id' => $active->id]);
     }
@@ -257,6 +307,62 @@ class AdminOrderCancellationTest extends TestCase
         $this->assertSame('cash', $order->payment_method);
         $this->assertNull($order->payment_reference);
         $this->assertNull($order->momo_order_id);
+    }
+
+    public function test_admin_cancelling_a_shipping_order_waits_for_return_before_restocking(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $product = Product::query()->create(['name' => 'Quần hoàn vận chuyển', 'base_price' => 100000]);
+        $variant = ProductVariant::query()->create([
+            'product_id' => $product->id,
+            'color' => 'Đen',
+            'size' => 'M',
+            'stock' => 5,
+            'price' => 100000,
+        ]);
+        $order = $this->makeOrder($customer, 'shipping');
+        $order->items()->create([
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => 'Đen / M',
+            'quantity' => 2,
+            'price' => 100000,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), ['status' => 'cancelled'])
+            ->assertRedirect();
+        $this->assertSame('pending_return', $order->fresh()->stock_return_status);
+        $this->assertSame(5, $variant->fresh()->stock);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.cancellation-settlement', $order), ['action' => 'stock_return'])
+            ->assertRedirect();
+        $this->assertSame('returned', $order->fresh()->stock_return_status);
+        $this->assertSame(7, $variant->fresh()->stock);
+    }
+
+    public function test_admin_can_complete_a_pending_refund(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $order = $customer->orders()->create([
+            'recipient_name' => $customer->name,
+            'phone' => '0900000000',
+            'address' => 'Hà Nội',
+            'payment_method' => 'momo',
+            'payment_status' => 'refund_pending',
+            'status' => 'cancelled',
+            'stock_return_status' => 'returned',
+            'total' => 100000,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.cancellation-settlement', $order), ['action' => 'refund'])
+            ->assertRedirect();
+
+        $this->assertSame('refunded', $order->fresh()->payment_status);
     }
 
     private function makeOrder(User $customer, string $status): Order

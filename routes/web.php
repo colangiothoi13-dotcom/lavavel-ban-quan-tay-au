@@ -87,6 +87,7 @@ Route::prefix('admin')->group(function () {
             Route::patch('/orders/confirm-all', [AdminOrderController::class, 'confirmAll'])->name('admin.orders.confirm-all');
             Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('admin.orders.status');
             Route::patch('/orders/{order}/payment', [AdminOrderController::class, 'updatePayment'])->name('admin.orders.payment');
+            Route::patch('/orders/{order}/cancellation-settlement', [AdminOrderController::class, 'settleCancellation'])->name('admin.orders.cancellation-settlement');
             Route::delete('/orders', [AdminOrderController::class, 'destroyAll'])->name('admin.orders.destroy-all');
             Route::delete('/orders/{order}', [AdminOrderController::class, 'destroy'])->name('admin.orders.destroy');
             Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');

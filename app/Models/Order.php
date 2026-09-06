@@ -21,10 +21,14 @@ class Order extends Model
         'payment_method',
         'payment_reference',
         'momo_order_id',
+        'momo_request_id',
+        'momo_transaction_id',
+        'momo_response_time',
         'payment_status',
         'payment_expires_at',
         'status',
         'cancellation_reason',
+        'stock_return_status',
         'completed_at',
         'archived_at',
         'total',
@@ -51,6 +55,11 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function momoPaymentAttempts(): HasMany
+    {
+        return $this->hasMany(MomoPaymentAttempt::class);
     }
 
     public function scopeVisibleInOrderHistory(Builder $query): Builder
@@ -87,11 +96,21 @@ class Order extends Model
             ->orderByDesc('id');
     }
 
+    public function scopeReadyForArchival(Builder $query): Builder
+    {
+        return $query->whereNull('archived_at')
+            ->whereNotIn('payment_status', ['refund_pending', 'paid_refund_pending'])
+            ->where('stock_return_status', '!=', 'pending_return')
+            ->whereDoesntHave('momoPaymentAttempts', fn (Builder $attempts) => $attempts->where('status', 'refund_pending'));
+    }
+
     public function scopeDeletableByAdmin(Builder $query): Builder
     {
         $cutoff = now()->subDays(7);
 
-        return $query->where(function (Builder $deletableQuery) use ($cutoff): void {
+        return $query
+            ->readyForArchival()
+            ->where(function (Builder $deletableQuery) use ($cutoff): void {
             $deletableQuery
                 ->where('status', 'cancelled')
                 ->orWhere(function (Builder $completedQuery) use ($cutoff): void {
@@ -110,15 +129,7 @@ class Order extends Model
 
     public function canBeDeletedByAdmin(): bool
     {
-        if ($this->status === 'cancelled') {
-            return true;
-        }
-
-        $completedDate = $this->completed_at ?? $this->updated_at;
-
-        return $this->status === 'completed'
-            && $completedDate !== null
-            && $completedDate->lte(now()->subDays(7));
+        return $this->exists && static::query()->whereKey($this->getKey())->deletableByAdmin()->exists();
     }
 
     public function getPaymentLabelAttribute(): string
@@ -133,7 +144,13 @@ class Order extends Model
 
     public function getPaymentStatusLabelAttribute(): string
     {
-        return $this->payment_status === 'paid' ? 'Da thanh toan' : 'Chua thanh toan';
+        return match ($this->payment_status) {
+            'paid' => 'Đã thanh toán',
+            'paid_refund_pending' => 'Đã thanh toán, chờ hoàn tiền thừa',
+            'refund_pending' => 'Chờ hoàn tiền',
+            'refunded' => 'Đã hoàn tiền',
+            default => 'Chưa thanh toán',
+        };
     }
 
     public function getStatusLabelAttribute(): string
@@ -150,7 +167,7 @@ class Order extends Model
     public function getCanRetryMomoPaymentAttribute(): bool
     {
         return $this->payment_method === self::PAYMENT_METHOD_MOMO
-            && $this->payment_status !== 'paid'
+            && $this->payment_status === 'unpaid'
             && in_array($this->status, ['pending', 'processing', 'shipping'], true);
     }
 
@@ -166,6 +183,28 @@ class Order extends Model
 
     public function canAutoFallbackToCash(): bool
     {
-        return $this->payment_status !== 'paid' && ! $this->isCashPayment();
+        return $this->payment_status === 'unpaid' && ! $this->isCashPayment();
+    }
+
+    public function syncPaymentStatusFromAttempts(): string
+    {
+        $statuses = $this->momoPaymentAttempts()->pluck('status');
+        $hasPaid = $statuses->contains('paid')
+            || (! $this->isMomoOrder() && in_array($this->payment_status, ['paid', 'paid_refund_pending'], true));
+        $hasRefundPending = $statuses->contains('refund_pending');
+
+        $status = match (true) {
+            $hasPaid && $hasRefundPending => 'paid_refund_pending',
+            $hasPaid => 'paid',
+            $hasRefundPending => 'refund_pending',
+            $statuses->contains('refunded') => 'refunded',
+            default => $this->payment_status,
+        };
+
+        if ($this->payment_status !== $status) {
+            $this->update(['payment_status' => $status]);
+        }
+
+        return $status;
     }
 }

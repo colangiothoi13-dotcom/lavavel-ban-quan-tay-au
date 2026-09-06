@@ -178,9 +178,12 @@ Luồng MoMo:
 1. Tạo đơn và giữ tồn kho.
 2. Gọi MoMo để tạo liên kết thanh toán.
 3. Cập nhật `payment_status=paid` khi return hoặc IPN hợp lệ.
-4. Return/IPN lặp không ghi nhận thanh toán lần hai.
-5. Đơn MoMo chưa thanh toán có thể thanh toán lại.
-6. Đơn MoMo quá hạn thanh toán sẽ được hủy và hoàn tồn kho.
+4. Mỗi lần tạo link được lưu thành một payment attempt riêng, nên callback của link cũ vẫn đối soát được sau khi tạo link mới.
+5. Return/IPN lặp không ghi nhận thanh toán lần hai.
+6. IPN trả HTTP `204 No Content` theo yêu cầu của MoMo.
+7. Đơn MoMo chưa thanh toán có thể thanh toán lại.
+8. Đơn MoMo quá hạn thanh toán sẽ được hủy và hoàn tồn kho.
+9. Callback đến sau khi đơn đã hủy/hết hạn chuyển sang `refund_pending` để nhân viên xử lý.
 
 Chạy thủ công job hủy đơn MoMo hết hạn:
 
@@ -206,6 +209,11 @@ shipping -------------------> cancelled
 
 - `unpaid`: chưa thanh toán.
 - `paid`: đã thanh toán.
+- `paid_refund_pending`: đã thanh toán đơn hàng nhưng có giao dịch thừa đang chờ hoàn tiền; vẫn được tính là doanh thu của đơn.
+- `refund_pending`: đã nhận tiền nhưng cần xử lý hoàn tiền, không được coi là doanh thu cuối cùng.
+- `refunded`: đã hoàn tiền.
+
+Đơn `shipping` không được hoàn kho ngay khi hủy. Admin phải xác nhận đã nhận lại hàng trước khi tồn kho được cộng lại. Với đơn đã thanh toán, admin phải xác nhận hoàn tiền để chuyển từ `refund_pending` sang `refunded`.
 
 Khi admin chuyển một đơn chưa thanh toán sang `shipping`, hệ thống có thể tự chuyển phương thức thanh toán không tiền mặt về tiền mặt theo nghiệp vụ giao hàng.
 
@@ -284,6 +292,7 @@ Ngoài ra:
 - Không dùng tài khoản mẫu với mật khẩu `password`.
 - Chạy `php artisan config:cache`, `php artisan route:cache` và `php artisan view:cache` sau khi cấu hình production.
 - Bảo đảm scheduler chạy đều để đơn MoMo hết hạn không giữ tồn kho vô thời hạn.
+- Không xóa vật lý đơn hàng đã thanh toán; thao tác dọn dữ liệu chỉ lưu trữ mềm bằng `archived_at`.
 - Kiểm tra quyền truy cập: khách hàng chỉ được xem và thao tác trên đơn của chính mình; khu vực `/admin` yêu cầu role admin.
 
 ## Cấu trúc thư mục chính

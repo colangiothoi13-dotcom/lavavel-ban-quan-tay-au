@@ -11,7 +11,7 @@ Artisan::command('inspire', function () {
 
 Artisan::command('orders:archive-expired', function () {
     $archived = \App\Models\Order::query()
-        ->whereNull('archived_at')
+        ->readyForArchival()
         ->where(function ($query): void {
             $cutoff = now()->subDays(2);
             $query
@@ -49,7 +49,12 @@ Artisan::command('orders:cancel-expired-payments', function () {
         ->each(function (int $orderId) use (&$cancelled): void {
             DB::transaction(function () use ($orderId, &$cancelled): void {
                 $order = \App\Models\Order::query()->lockForUpdate()->find($orderId);
-                if (! $order || $order->status === 'cancelled' || $order->payment_status === 'paid') {
+                if (! $order
+                    || $order->payment_method !== \App\Models\Order::PAYMENT_METHOD_MOMO
+                    || $order->payment_status !== 'unpaid'
+                    || ! in_array($order->status, ['pending', 'processing'], true)
+                    || ! $order->payment_expires_at
+                    || $order->payment_expires_at->isFuture()) {
                     return;
                 }
 

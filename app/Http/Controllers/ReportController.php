@@ -82,7 +82,7 @@ class ReportController extends Controller
     private function reportableOrders(Carbon $from, Carbon $to): Builder
     {
         return Order::query()
-            ->where('payment_status', 'paid')
+            ->whereIn('payment_status', ['paid', 'paid_refund_pending'])
             ->where('status', '!=', 'cancelled')
             ->whereBetween('created_at', [$from, $to]);
     }
