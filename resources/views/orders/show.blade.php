@@ -102,6 +102,12 @@
             <section class="detail-actions">
                 @if(in_array($order->status, ['pending', 'processing', 'shipping'], true))
                     <button class="detail-button danger" type="button" data-open-cancel-modal data-cancel-action="{{ route('user.orders.cancel', $order) }}">Hủy đơn hàng</button>
+                    @if($order->isMomoOrder() && $order->can_retry_momo_payment)
+                        <form method="POST" action="{{ route('user.orders.momo.retry', $order) }}">
+                            @csrf
+                            <button class="detail-button primary" type="submit">Thanh toán lại với MoMo</button>
+                        </form>
+                    @endif
                 @else
                     <form method="POST" action="{{ route('user.orders.reorder', $order) }}">
                         @csrf

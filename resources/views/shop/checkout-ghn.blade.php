@@ -79,7 +79,8 @@
             <label>Phương thức thanh toán</label>
             <div class="payment-options">
                 <label><input type="radio" name="payment_method" value="cash" @checked(old('payment_method', 'cash') === 'cash') required> Tiền mặt khi nhận hàng</label>
-                <label><input type="radio" name="payment_method" value="bank_transfer" @checked(old('payment_method') === 'bank_transfer') required> Chuyển khoản ngân hàng</label>
+                <label><input type="radio" name="payment_method" value="bank_transfer" @checked(old('payment_method') === 'bank_transfer')> Chuyển khoản ngân hàng</label>
+                <label><input type="radio" name="payment_method" value="momo" @checked(old('payment_method') === 'momo')> MoMo</label>
             </div>
         </section>
 

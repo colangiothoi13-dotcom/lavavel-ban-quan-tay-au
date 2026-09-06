@@ -34,6 +34,7 @@
         /* ================= PHẦN DÀNH CHO USER ================= */
         .user-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 1001; width: min(300px, 86vw); background-color: #535353; color: white; display: flex; flex-direction: column; transform: translateX(-100%); visibility: hidden; box-shadow: 10px 0 30px rgba(15, 23, 42, .24); transition: transform .25s ease, visibility .25s ease; }
         .user-sidebar.is-open { transform: translateX(0); visibility: visible; }
+        .user-sidebar-persistent { position: relative; inset: auto; width: 220px; transform: none; visibility: visible; box-shadow: none; flex-shrink: 0; }
         .user-sidebar .sidebar-logo { height: 70px; background-color: #d1e189; color: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border-bottom: 1px solid #444; }
         .user-sidebar .sidebar-menu { list-style: none; display: flex; flex-direction: column; flex: 1; }
         .user-sidebar .sidebar-menu li a { display: block; padding: 16px 20px; color: #d1d1d1; text-decoration: none; font-size: 14px; transition: 0.2s; }
@@ -79,7 +80,13 @@
 
         .user-content-area { flex: 1; padding: 30px; overflow-y: auto; }
         .user-card { background-color: #ffffff; padding: 30px; border-radius: 12px; min-height: 100%; }
+        .user-panel-layout .user-menu-toggle { display: none; }
+        .user-panel-layout .user-content-area { padding: 25px; }
+        .user-panel-layout .user-card { min-height: 100%; border-radius: 4px; border-top: 4px solid #333; }
         @media (max-width: 900px) {
+            .user-sidebar-persistent { position: fixed; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-100%); visibility: hidden; box-shadow: 10px 0 30px rgba(15, 23, 42, .24); }
+            .user-sidebar-persistent.is-open { transform: translateX(0); visibility: visible; }
+            .user-panel-layout .user-menu-toggle { display: block; }
             .user-header { padding: 0 16px; }
             .user-header .logo { font-size: 17px; }
             .search-wrapper { width: auto; min-width: 0; flex: 1; margin-left: 12px; }
@@ -141,7 +148,12 @@
 
     @else
         {{-- ================= GIAO DIỆN USER ================= --}}
-        <nav class="user-sidebar" id="user-navigation" data-user-menu aria-label="Điều hướng khách hàng" aria-hidden="true">
+        @php
+            $userPanelLayout = Request::is('gio-hang*')
+                || Request::is('user/*')
+                || Request::is('thanh-toan*');
+        @endphp
+        <nav class="user-sidebar {{ $userPanelLayout ? 'user-sidebar-persistent' : '' }}" id="user-navigation" data-user-menu aria-label="Điều hướng khách hàng" aria-hidden="{{ $userPanelLayout ? 'false' : 'true' }}">
             <div class="sidebar-logo">TRANG KHÁCH HÀNG</div>
             <ul class="sidebar-menu">
                 <li><a href="{{ route('shop.home') }}">🏡Trang chủ</a></li>                
@@ -155,7 +167,7 @@
         </nav>
         <button type="button" class="user-menu-backdrop" data-user-menu-backdrop aria-label="Đóng menu" tabindex="-1"></button>
 
-        <div class="user-main">
+        <div class="user-main {{ $userPanelLayout ? 'user-panel-layout' : '' }}">
             <div class="user-header">
                 <button type="button" class="user-menu-toggle" data-user-menu-toggle aria-controls="user-navigation" aria-expanded="false" aria-label="Mở menu">☰</button>
                 <a href="{{ route('shop.home') }}" class="logo">QUẦN TÂY ÂU</a>

@@ -3,19 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Services\GHNService;
+use App\Models\Order;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Payments\MomoPaymentService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Throwable;
 
 class StorefrontController
 {
-    public function __construct(private readonly GHNService $ghn) {}
+    public function __construct(
+        private readonly GHNService $ghn,
+        private readonly MomoPaymentService $momoPaymentService
+    ) {}
 
     public function home(Request $request)
     {
@@ -244,17 +251,18 @@ class StorefrontController
         return view('shop.checkout-ghn', compact('items', 'addresses'));
     }
 
-    public function placeOrder(Request $request)
+    public function placeOrder(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:255', 'required_without:saved_address_id'],
             'phone' => ['nullable', 'string', 'max:30', 'required_without:saved_address_id'],
             'address' => ['nullable', 'string', 'max:500', 'required_without:saved_address_id'],
             'saved_address_id' => ['nullable', 'integer', 'exists:addresses,id'],
-            'payment_method' => ['required', 'in:cash,bank_transfer'],
+            'payment_method' => ['required', 'in:cash,bank_transfer,momo,cod'],
             'ghn_district_id' => ['nullable', 'integer', 'min:1'],
             'ghn_ward_code' => ['nullable', 'string', 'max:20'],
         ]);
+        $data['payment_method'] = $this->normalizePaymentMethod($data['payment_method']);
         if (! empty($data['saved_address_id'])) {
             $savedAddress = $request->user()?->addresses()->findOrFail($data['saved_address_id']);
             $data['name'] = $savedAddress->recipient_name;
@@ -291,13 +299,17 @@ class StorefrontController
             throw ValidationException::withMessages(['shipping' => $exception->getMessage()]);
         }
 
-        DB::transaction(function () use ($items, $request, $data, $subtotal, $shippingFee) {
+        $order = null;
+        DB::transaction(function () use ($items, $request, $data, $subtotal, $shippingFee, &$order): void {
             $order = $request->user()->orders()->create([
                 'recipient_name' => $data['name'],
                 'phone' => $data['phone'],
                 'address' => $data['address'],
                 'payment_method' => $data['payment_method'],
                 'payment_status' => 'unpaid',
+                'payment_expires_at' => $data['payment_method'] === Order::PAYMENT_METHOD_MOMO
+                    ? now()->addMinutes((int) config('services.momo.payment_timeout', 30))
+                    : null,
                 'total' => $subtotal + $shippingFee,
                 'shipping_fee' => $shippingFee,
                 'ghn_district_id' => $data['ghn_district_id'],
@@ -325,8 +337,33 @@ class StorefrontController
                 $request->user()->cartItems()->whereIn('product_variant_id', $items->pluck('variant.id'))->delete();
             }
         });
+        if (! $order instanceof Order) {
+            throw new RuntimeException('Không thể tạo đơn hàng.');
+        }
+
+        if ($order->payment_method === Order::PAYMENT_METHOD_MOMO) {
+            try {
+                $response = $this->momoPaymentService->createPayment(
+                    $order,
+                    route('momo.result'),
+                    route('momo.ipn')
+                );
+
+                return redirect()->away($response['pay_url']);
+            } catch (Throwable $exception) {
+                return back()->withErrors(['payment_method' => $exception->getMessage()]);
+            }
+        }
 
         return redirect()->route('shop.home')->with('status', 'Đặt hàng thành công. Chúng tôi sẽ liên hệ với bạn sớm.');
+    }
+
+    private function normalizePaymentMethod(string $paymentMethod): string
+    {
+        return match ($paymentMethod) {
+            'cod' => Order::PAYMENT_METHOD_CASH,
+            default => $paymentMethod,
+        };
     }
 
     private function cartItems(Request $request, ?array $selectedIds = null)

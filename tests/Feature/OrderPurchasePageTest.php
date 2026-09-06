@@ -13,6 +13,15 @@ class OrderPurchasePageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_guest_is_redirected_to_login_before_checkout(): void
+    {
+        $this->get(route('checkout', ['selected_items' => [1]]))
+            ->assertRedirect(route('login'));
+
+        $this->post(route('checkout.place'))
+            ->assertRedirect(route('login'));
+    }
+
     public function test_pending_tab_includes_pending_and_processing_orders(): void
     {
         $user = User::factory()->create();

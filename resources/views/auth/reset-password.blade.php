@@ -5,7 +5,8 @@
 @if($errors->any())<div class="error">{{ $errors->first() }}</div>@endif
 <form method="POST" action="{{ route('password.update') }}">
     @csrf
-    <label for="email">Email</label><input id="email" type="email" name="email" value="{{ session('email', old('email')) }}" required>
+    <label for="email">Email</label><input id="email" type="email" name="email" value="{{ session('password_reset.email', old('email')) }}" required>
+    <input type="hidden" name="reset_token" value="{{ session('password_reset.token') }}">
     <label for="password">Mật khẩu mới</label>
     <div class="password-field" data-password-field>
         <input id="password" type="password" name="password" autocomplete="new-password" minlength="8" required>

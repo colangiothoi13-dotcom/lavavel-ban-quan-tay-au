@@ -87,6 +87,12 @@
                         <a class="button button-light" href="{{ route('user.orders.show', $order) }}">Xem chi tiết</a>
                         @if(in_array($order->status, ['pending', 'processing', 'shipping'], true))
                             <button class="button button-danger" type="button" data-open-cancel-modal data-cancel-action="{{ route('user.orders.cancel', $order) }}">Hủy đơn</button>
+                            @if($order->isMomoOrder() && $order->can_retry_momo_payment)
+                                <form method="POST" action="{{ route('user.orders.momo.retry', $order) }}">
+                                    @csrf
+                                    <button class="button button-primary" type="submit">Thanh toán lại với MoMo</button>
+                                </form>
+                            @endif
                         @else
                             <form method="POST" action="{{ route('user.orders.reorder', $order) }}">
                                 @csrf

@@ -9,13 +9,37 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    protected $fillable = ['recipient_name', 'phone', 'address', 'payment_method', 'payment_status', 'status', 'cancellation_reason', 'completed_at', 'archived_at', 'total', 'shipping_fee', 'ghn_district_id', 'ghn_ward_code', 'ghn_order_code'];
+    public const PAYMENT_METHOD_CASH = 'cash';
+    public const PAYMENT_METHOD_COD = 'cod';
+    public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
+    public const PAYMENT_METHOD_MOMO = 'momo';
+
+    protected $fillable = [
+        'recipient_name',
+        'phone',
+        'address',
+        'payment_method',
+        'payment_reference',
+        'momo_order_id',
+        'payment_status',
+        'payment_expires_at',
+        'status',
+        'cancellation_reason',
+        'completed_at',
+        'archived_at',
+        'total',
+        'shipping_fee',
+        'ghn_district_id',
+        'ghn_ward_code',
+        'ghn_order_code',
+    ];
 
     protected function casts(): array
     {
         return [
             'completed_at' => 'datetime',
             'archived_at' => 'datetime',
+            'payment_expires_at' => 'datetime',
         ];
     }
 
@@ -99,16 +123,49 @@ class Order extends Model
 
     public function getPaymentLabelAttribute(): string
     {
-        return $this->payment_method === 'bank_transfer' ? 'Chuyển khoản ngân hàng' : 'Tiền mặt khi nhận hàng';
+        return match ($this->payment_method) {
+            self::PAYMENT_METHOD_COD => 'COD / Tiền mặt khi nhận hàng',
+            self::PAYMENT_METHOD_BANK_TRANSFER => 'Chuyen khoan ngan hang',
+            self::PAYMENT_METHOD_MOMO => 'MoMo',
+            default => 'Tien mat khi nhan hang',
+        };
     }
 
     public function getPaymentStatusLabelAttribute(): string
     {
-        return $this->payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán';
+        return $this->payment_status === 'paid' ? 'Da thanh toan' : 'Chua thanh toan';
     }
 
     public function getStatusLabelAttribute(): string
     {
-        return ['pending' => 'Chờ xác nhận', 'processing' => 'Đang xử lý', 'shipping' => 'Đang giao', 'completed' => 'Hoàn thành', 'cancelled' => 'Đã hủy'][$this->status] ?? $this->status;
+        return [
+            'pending' => 'Cho xac nhan',
+            'processing' => 'Dang xu ly',
+            'shipping' => 'Dang giao',
+            'completed' => 'Hoan thanh',
+            'cancelled' => 'Da huy',
+        ][$this->status] ?? $this->status;
+    }
+
+    public function getCanRetryMomoPaymentAttribute(): bool
+    {
+        return $this->payment_method === self::PAYMENT_METHOD_MOMO
+            && $this->payment_status !== 'paid'
+            && in_array($this->status, ['pending', 'processing', 'shipping'], true);
+    }
+
+    public function isMomoOrder(): bool
+    {
+        return $this->payment_method === self::PAYMENT_METHOD_MOMO;
+    }
+
+    public function isCashPayment(): bool
+    {
+        return in_array($this->payment_method, [self::PAYMENT_METHOD_CASH, self::PAYMENT_METHOD_COD], true);
+    }
+
+    public function canAutoFallbackToCash(): bool
+    {
+        return $this->payment_status !== 'paid' && ! $this->isCashPayment();
     }
 }

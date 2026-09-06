@@ -231,6 +231,34 @@ class AdminOrderCancellationTest extends TestCase
         $this->assertDatabaseHas('orders', ['id' => $order->id]);
     }
 
+    public function test_admin_shipping_unpaid_order_with_non_cash_payment_auto_switches_to_cash(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $customer = User::factory()->create();
+        $order = $customer->orders()->create([
+            'recipient_name' => $customer->name,
+            'phone' => '0900000000',
+            'address' => 'Hà Nội',
+            'payment_method' => 'bank_transfer',
+            'payment_status' => 'unpaid',
+            'status' => 'processing',
+            'payment_reference' => 'ORDER-999-ABC',
+            'momo_order_id' => 'ORDER-999-ABC',
+            'total' => 100000,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), ['status' => 'shipping'])
+            ->assertRedirect();
+
+        $order->refresh();
+
+        $this->assertSame('shipping', $order->status);
+        $this->assertSame('cash', $order->payment_method);
+        $this->assertNull($order->payment_reference);
+        $this->assertNull($order->momo_order_id);
+    }
+
     private function makeOrder(User $customer, string $status): Order
     {
         return $customer->orders()->create([

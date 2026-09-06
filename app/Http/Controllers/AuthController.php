@@ -6,12 +6,15 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Throwable;
 
 class AuthController extends Controller
 {
     private const OTP_LIFETIME_MINUTES = 15;
+    private const OTP_MAX_ATTEMPTS = 5;
+    private const OTP_SEND_LIMIT = 3;
 
     public function showLogin()
     {
@@ -176,8 +179,23 @@ class AuthController extends Controller
 
     public function sendOtp(Request $request)
     {
-        $data = $request->validate(['email' => ['required', 'email', 'exists:users,email']]);
-        $user = User::where('email', $data['email'])->firstOrFail();
+        $data = $request->validate(['email' => ['required', 'email']]);
+        $email = strtolower($data['email']);
+        $sendKey = $this->passwordResetRateLimitKey($request, $email).':send';
+        if (RateLimiter::tooManyAttempts($sendKey, self::OTP_SEND_LIMIT)) {
+            return redirect()->route('password.otp')
+                ->with('email', $email)
+                ->with('status', 'Nếu email hợp lệ, mã xác minh sẽ được gửi đến địa chỉ đó.');
+        }
+        RateLimiter::hit($sendKey, 60);
+
+        $user = User::where('email', $email)->first();
+        if (! $user) {
+            return redirect()->route('password.otp')
+                ->with('email', $email)
+                ->with('status', 'Nếu email hợp lệ, mã xác minh sẽ được gửi đến địa chỉ đó.');
+        }
+
         $otp = (string) random_int(100000, 999999);
         $user->forceFill([
             'reset_otp' => $otp,
@@ -191,10 +209,14 @@ class AuthController extends Controller
         } catch (Throwable $exception) {
             report($exception);
 
-            return back()->withErrors(['email' => 'Không thể gửi email. Bạn hãy kiểm tra cấu hình SMTP trong file .env.'])->withInput();
+            return redirect()->route('password.otp')
+                ->with('email', $email)
+                ->with('status', 'Nếu email hợp lệ, mã xác minh sẽ được gửi đến địa chỉ đó.');
         }
 
-        return redirect()->route('password.otp')->with('email', $user->email)->with('status', 'Mã xác minh đã được gửi đến email của bạn.');
+        return redirect()->route('password.otp')
+            ->with('email', $user->email)
+            ->with('status', 'Nếu email hợp lệ, mã xác minh sẽ được gửi đến địa chỉ đó.');
     }
 
     public function showOtp()
@@ -208,17 +230,32 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
             'otp' => ['required', 'digits:6'],
         ]);
-        $user = User::where('email', $data['email'])->first();
+        $email = strtolower($data['email']);
+        $attemptKey = $this->passwordResetRateLimitKey($request, $email).':verify';
+        if (RateLimiter::tooManyAttempts($attemptKey, self::OTP_MAX_ATTEMPTS)) {
+            return back()->withErrors(['otp' => 'Bạn đã nhập sai quá số lần cho phép. Vui lòng gửi lại mã mới sau ít phút.'])->withInput();
+        }
+
+        $user = User::where('email', $email)->first();
 
         if (! $user || ! $user->reset_otp_expires_at || $user->reset_otp_expires_at->isPast()) {
-            return back()->withErrors(['otp' => 'Mã xác minh đã hết hạn. Vui lòng gửi lại để nhận mã mới.'])->withInput();
+            return back()->withErrors(['otp' => 'Mã xác minh không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại mã mới.'])->withInput();
         }
 
         if (! hash_equals((string) $user->reset_otp, (string) $data['otp'])) {
-            return back()->withErrors(['otp' => 'Mã xác minh không đúng. Vui lòng dùng mã mới nhất trong email.'])->withInput();
+            RateLimiter::hit($attemptKey, self::OTP_LIFETIME_MINUTES * 60);
+            return back()->withErrors(['otp' => 'Mã xác minh không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại mã mới.'])->withInput();
         }
 
-        return redirect()->route('password.reset')->with('reset_token', Str::random(40))->with('email', $user->email);
+        RateLimiter::clear($attemptKey);
+        $request->session()->put('password_reset', [
+            'email' => $user->email,
+            'token' => Str::random(40),
+            'expires_at' => now()->addMinutes(self::OTP_LIFETIME_MINUTES)->timestamp,
+        ]);
+        $user->forceFill(['reset_otp' => null, 'reset_otp_expires_at' => null])->save();
+
+        return redirect()->route('password.reset');
     }
 
     public function showResetPassword()
@@ -228,14 +265,31 @@ class AuthController extends Controller
 
     public function resetPassword(Request $request)
     {
+        $reset = $request->session()->get('password_reset');
+        abort_unless(
+            is_array($reset)
+                && isset($reset['email'], $reset['token'], $reset['expires_at'])
+                && (int) $reset['expires_at'] >= now()->timestamp,
+            422,
+            'Phiên xác minh đã hết hạn.'
+        );
+
         $data = $request->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
+            'email' => ['required', 'email'],
+            'reset_token' => ['required', 'string', 'size:40'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
-        $user = User::where('email', $data['email'])->firstOrFail();
-        abort_unless($user->reset_otp && $user->reset_otp_expires_at?->isFuture(), 422, 'Phiên xác minh đã hết hạn.');
-        $user->update(['password' => $data['password'], 'reset_otp' => null, 'reset_otp_expires_at' => null]);
+        abort_unless(hash_equals((string) $reset['email'], strtolower($data['email'])), 422, 'Phiên xác minh không hợp lệ.');
+        abort_unless(hash_equals((string) $reset['token'], $data['reset_token']), 422, 'Phiên xác minh không hợp lệ.');
+        $user = User::where('email', $reset['email'])->firstOrFail();
+        $user->update(['password' => $data['password']]);
+        $request->session()->forget('password_reset');
 
         return redirect()->route('login')->with('status', 'Đổi mật khẩu thành công.');
+    }
+
+    private function passwordResetRateLimitKey(Request $request, string $email): string
+    {
+        return 'password-reset:'.sha1($email.'|'.$request->ip());
     }
 }

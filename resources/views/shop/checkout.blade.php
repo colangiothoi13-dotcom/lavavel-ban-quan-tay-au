@@ -62,6 +62,7 @@
             <div style="display:flex;gap:12px;flex-wrap:wrap">
                 <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="cash" @checked(old('payment_method', 'cash') === 'cash') required> Tiền mặt khi nhận hàng</label>
                 <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="bank_transfer" @checked(old('payment_method') === 'bank_transfer')> Chuyển khoản ngân hàng</label>
+                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="momo" @checked(old('payment_method') === 'momo')> MoMo</label>
             </div>
         </div>
 

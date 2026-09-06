@@ -10,6 +10,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\GHNController;
+use App\Http\Controllers\MomoPaymentController;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
@@ -23,8 +25,14 @@ Route::post('/gio-hang/them/{product}', [StorefrontController::class, 'addToCart
 Route::patch('/gio-hang/{variant}', [StorefrontController::class, 'updateCart'])->name('cart.update');
 Route::post('/gio-hang/{variant}/doi-bien-the', [StorefrontController::class, 'replaceVariant'])->name('cart.replace-variant');
 Route::delete('/gio-hang/{variant}', [StorefrontController::class, 'removeFromCart'])->name('cart.remove');
-Route::get('/thanh-toan', [StorefrontController::class, 'checkout'])->name('checkout');
-Route::post('/thanh-toan', [StorefrontController::class, 'placeOrder'])->name('checkout.place');
+Route::middleware('auth')->group(function () {
+    Route::get('/thanh-toan', [StorefrontController::class, 'checkout'])->name('checkout');
+    Route::post('/thanh-toan', [StorefrontController::class, 'placeOrder'])->name('checkout.place');
+});
+Route::get('/thanh-toan/momo/result', [MomoPaymentController::class, 'result'])->name('momo.result');
+Route::post('/thanh-toan/momo/ipn', [MomoPaymentController::class, 'ipn'])
+    ->withoutMiddleware([VerifyCsrfToken::class])
+    ->name('momo.ipn');
 Route::prefix('ghn')->middleware(['auth', 'throttle:60,1'])->group(function () {
     Route::get('/provinces', [GHNController::class, 'provinces'])->name('ghn.provinces');
     Route::get('/districts', [GHNController::class, 'districts'])->name('ghn.districts');
@@ -65,6 +73,7 @@ Route::prefix('user')->middleware('auth')->group(function () {
     Route::get('/don-mua/{order}', [OrderController::class, 'show'])->name('user.orders.show');
     Route::post('/don-mua/{order}/mua-lai', [OrderController::class, 'reorder'])->name('user.orders.reorder');
     Route::patch('/don-mua/{order}/huy', [OrderController::class, 'cancel'])->name('user.orders.cancel');
+    Route::post('/don-mua/{order}/momo/lai', [MomoPaymentController::class, 'start'])->name('user.orders.momo.retry');
 });
 
 Route::prefix('admin')->group(function () {

@@ -49,4 +49,16 @@ return [
         'timeout' => env('GHN_TIMEOUT', 10),
     ],
 
+    'momo' => [
+        'partner_code' => env('MOMO_PARTNER_CODE'),
+        'access_key' => env('MOMO_ACCESS_KEY'),
+        'secret_key' => env('MOMO_SECRET_KEY'),
+        'base_url' => env('MOMO_BASE_URL', 'https://test-payment.momo.vn'),
+        'create_endpoint' => env('MOMO_CREATE_ENDPOINT', '/v2/gateway/api/create'),
+        'ipn_route' => env('MOMO_IPN_ROUTE', 'momo.ipn'),
+        'return_route' => env('MOMO_RETURN_ROUTE', 'momo.result'),
+        'timeout' => env('MOMO_TIMEOUT', 15),
+        'payment_timeout' => env('MOMO_PAYMENT_TIMEOUT', 30),
+    ],
+
 ];
