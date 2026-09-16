@@ -13,7 +13,7 @@
     <p class="checkout-lead">Chọn địa chỉ để GHN tính phí vận chuyển chính xác.</p>
     @if($errors->any())<div class="checkout-error">{{ $errors->first() }}</div>@endif
 
-    <form method="POST" action="{{ route('checkout.place') }}" id="checkout-form">
+    <form method="POST" action="{{ route('checkout.place') }}" id="checkout-form"> 
         @csrf
         @foreach(request()->input('selected_items', []) as $selectedId)
             <input type="hidden" name="selected_items[]" value="{{ $selectedId }}">
