@@ -29,8 +29,8 @@
         .btn-admin-logout { background-color: #ef4444; color: white; padding: 8px 16px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; border-radius: 4px; transition: 0.2s; }
         .btn-admin-logout:hover { background-color: #dc2626; }
         
-        .admin-content-area { min-height: 0; flex: 1; padding: 25px; overflow-y: auto; }
-        .admin-card { background-color: #ffffff; padding: 25px; border-radius: 4px; min-height: 100%; border-top: 4px solid #333; }
+        .admin-content-area { min-height: 0; flex: 1; padding: 8px; overflow-y: auto; }
+        .admin-card { background-color: #ffffff; padding: 12px; border-radius: 4px; min-height: 100%; border-top: 4px solid #333; }
 
         /* ================= PHẦN DÀNH CHO USER ================= */
         .user-shell { display: flex; width: 100%; min-height: 100vh; background: #f1f5f9; }
@@ -125,6 +125,13 @@
             <div class="admin-header">
                 <div class="title">HỆ THỐNG QUẢN LÝ QUẦN TÂY ÂU</div>
                 <div class="actions">
+                    <a href="{{ route('chat.admin.index') }}" title="Tin nhắn" style="position: relative; justify-content: center; color: #d1d1d1; transition: color .2s;">
+                        <svg viewBox="0 0 24 24" style="width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                        @php($unreadAdmin = app(App\Services\Chat\ChatService::class)->unreadForAdmins())
+                        @if($unreadAdmin > 0)
+                            <span style="position: absolute; top: -5px; right: -8px; background: #ef4444; color: #fff; font-size: 10px; font-weight: bold; border-radius: 50%; min-width: 18px; min-height: 18px; display: flex; align-items: center; justify-content: center; line-height: 1;">{{ $unreadAdmin }}</span>
+                        @endif
+                    </a>
                     <a href="{{ route('admin.profile.show') }}">
                         @if(auth()->user()->avatar)
                             <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Ảnh đại diện của {{ auth()->user()->name }}">
@@ -225,6 +232,13 @@
                                     <circle cx="10" cy="20" r="1"></circle>
                                     <circle cx="18" cy="20" r="1"></circle>
                                 </svg>
+                            </a>
+                            <a href="{{ route('chat.user.index') }}" class="header-cart-link" aria-label="Tin nhắn" title="Tin nhắn" style="position: relative;">
+                                <svg viewBox="0 0 24 24" style="width: 23px; height: 23px;" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                @php($unreadUser = app(App\Services\Chat\ChatService::class)->unreadForUser(auth()->user()))
+                                @if($unreadUser > 0)
+                                    <span style="position: absolute; top: -1px; right: -3px; background: #ef4444; color: #fff; font-size: 10px; font-weight: bold; border-radius: 50%; min-width: 17px; min-height: 17px; display: flex; align-items: center; justify-content: center; line-height: 1;">{{ $unreadUser }}</span>
+                                @endif
                             </a>
                             <a href="{{ route('user.profile.show') }}" class="header-user-profile">
                                 @if(auth()->user()->avatar)

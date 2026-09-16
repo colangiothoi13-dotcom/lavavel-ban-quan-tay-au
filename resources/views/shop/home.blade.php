@@ -56,16 +56,7 @@
     @php($isAdmin = auth()->check() && auth()->user()->isAdmin())
 
     <div class="hero">
-        <div class="hero-search-wrap">
-            <form class="hero-search" method="GET" action="{{ route('shop.home') }}" autocomplete="off">
-                @if(request('gender')) <input type="hidden" name="gender" value="{{ request('gender') }}"> @endif
-                @if(request('size')) <input type="hidden" name="size" value="{{ request('size') }}"> @endif
-                @if(request('category_id')) <input type="hidden" name="category_id" value="{{ request('category_id') }}"> @endif
-                <input id="product-search-input" type="text" name="keyword" placeholder="Nhập tên mẫu quần âu bạn tìm..." value="{{ request('keyword') }}" aria-label="Tìm kiếm sản phẩm" aria-controls="product-search-suggestions" aria-expanded="false">
-                <button type="submit">Tìm kiếm</button>
-            </form>
-            <div id="product-search-suggestions" class="search-suggestions" role="listbox"></div>
-        </div>
+
         <p style="margin-top: 18px;">Sự kết hợp hoàn hảo giữa chất liệu cao cấp và kĩ thuật may đo tỉ mỉ.</p>
     </div>
 
@@ -252,7 +243,7 @@
         });
 
         document.addEventListener('click', function (event) {
-            if (!event.target.closest('.hero-search-wrap')) hideSuggestions();
+            if (!event.target.closest('.search-wrapper')) hideSuggestions();
         });
     }());
 </script>

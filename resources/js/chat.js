@@ -55,6 +55,15 @@ function setCount(input, output, maxLength) {
     if (output) output.textContent = `${input.value.length}/${maxLength}`;
 }
 
+function submitOnEnter(input, form) {
+    input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+
+        event.preventDefault();
+        form.requestSubmit();
+    });
+}
+
 function formatTimestamp(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -234,6 +243,7 @@ function initializeUserChat(root) {
         startRealtimeFallback();
     });
     input.addEventListener('input', () => setCount(input, count, maxLength));
+    submitOnEnter(input, form);
     form.addEventListener('submit', sendMessage);
     loadOverview();
     refreshStatus();
@@ -444,6 +454,7 @@ function initializeAdminChat(root) {
         selectConversation(conversation);
     });
     input.addEventListener('input', () => setCount(input, count, maxLength));
+    submitOnEnter(input, form);
     form.addEventListener('submit', sendMessage);
     setSelectedState(null);
 
