@@ -16,8 +16,8 @@
     .chat-unread strong { color: #1e293b; }
     .chat-alert { margin: 0 0 16px; padding: 11px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; }
     .chat-alert[hidden], .chat-empty[hidden] { display: none; }
-    .chat-panel { display: flex; flex-direction: column; min-height: min(680px, calc(100vh - 230px)); border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; overflow: hidden; }
-    .chat-messages { flex: 1; min-height: 280px; margin: 0; padding: 24px; overflow-y: auto; list-style: none; }
+    .chat-panel { display: flex; flex-direction: column; height: calc(100vh - 240px); border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; overflow: hidden; }
+    .chat-messages { flex: 1; min-height: 0; margin: 0; padding: 24px; overflow-y: auto; list-style: none; }
     .chat-empty { margin: 90px auto; color: #64748b; text-align: center; }
     .chat-message { display: flex; margin: 0 0 14px; }
     .chat-message.is-mine { justify-content: flex-end; }
