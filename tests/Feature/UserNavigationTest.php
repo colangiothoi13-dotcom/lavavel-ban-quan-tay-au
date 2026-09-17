@@ -51,4 +51,46 @@ class UserNavigationTest extends TestCase
                 'Xin chào! Nguyen Van An',
             ], false);
     }
+
+    public function test_user_layout_keeps_two_pixel_gaps_between_navigation_bars_and_content(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $content = $this->actingAs($user)
+            ->get(route('user.profile.show'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match('/\\.user-shell\\s*\\{[^}]*gap:\\s*2px;/s', $content),
+            'The user shell must keep a 2px gap between the sidebar and main area.'
+        );
+        $this->assertSame(
+            1,
+            preg_match('/\\.user-main\\s*\\{[^}]*gap:\\s*2px;/s', $content),
+            'The user main area must keep a 2px gap between the header and content.'
+        );
+    }
+
+    public function test_user_layout_uses_a_visible_gutter_and_rounded_content_frame(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $content = $this->actingAs($user)
+            ->get(route('user.profile.show'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match('/\.user-shell\s*\{[^}]*background:\s*#e2e8f0;/s', $content),
+            'The user shell must expose a light gutter between the navigation bars and content.'
+        );
+        $this->assertSame(
+            1,
+            preg_match('/\.user-card\s*\{[^}]*border-radius:\s*20px;/s', $content),
+            'The user content frame must keep the rounded shape shown in the reference layout.'
+        );
+    }
 }

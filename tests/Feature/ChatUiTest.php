@@ -11,12 +11,39 @@ class ChatUiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_can_see_the_chat_link_on_the_storefront(): void
+    public function test_authenticated_user_sees_only_the_popup_chat_widget_on_the_storefront(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($user)->get(route('shop.home'))
+            ->assertOk()
+            ->assertDontSee('href="'.route('chat.user.index').'"', false)
+            ->assertSee('id="user-chat-toggle"', false)
+            ->assertSee('id="user-chat-popup"', false);
+    }
+
+    public function test_guest_does_not_see_the_user_chat_popup_on_the_storefront(): void
     {
         $this->get(route('shop.home'))
             ->assertOk()
-            ->assertSee('Nhắn tin')
-            ->assertSee('href="'.route('chat.user.index').'"', false);
+            ->assertDontSee('id="user-chat-toggle"', false)
+            ->assertDontSee('id="user-chat-popup"', false);
+    }
+
+    public function test_authenticated_user_popup_loads_the_chat_bundle_on_the_storefront(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $content = $this->actingAs($user)
+            ->get(route('shop.home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match('/<script type="module"[^>]+src="[^"]*app-[^"]+\.js"/s', $content),
+            'The user popup needs the compiled chat bundle to send and receive messages.'
+        );
     }
 
     public function test_guest_is_sent_to_login_when_opening_the_chat_page(): void
@@ -38,7 +65,49 @@ class ChatUiTest extends TestCase
             ->assertSee('data-chat-unread-count', false)
             ->assertSee('data-send-url="'.route('chat.user.messages.store').'"', false)
             ->assertSee('data-status-url="'.route('chat.user.admin-status').'"', false)
-            ->assertSee('chat.user.'.$user->id, false);
+            ->assertSee('chat.user.'.$user->id, false)
+            ->assertSee('chat-panel--white', false);
+    }
+
+    public function test_user_chat_uses_white_incoming_blue_outgoing_bubbles_and_send_actions(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $chatPage = $this->actingAs($user)
+            ->get(route('chat.user.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(1, preg_match('/\.chat-messages\s*\{[^}]*background:\s*#f8fafc;/s', $chatPage));
+        $this->assertSame(1, preg_match('/\.chat-bubble\s*\{[^}]*background:\s*#fff;/s', $chatPage));
+        $this->assertSame(1, preg_match('/\.chat-message\.is-mine \.chat-bubble\s*\{[^}]*background:\s*#2563eb;/s', $chatPage));
+        $this->assertSame(1, preg_match('/\.chat-compose button\s*\{[^}]*background:\s*#2563eb;/s', $chatPage));
+
+        $storefront = $this->actingAs($user)
+            ->get(route('shop.home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(1, preg_match('/\.user-chat-messages\s*\{[^}]*background:\s*#f8fafc;/s', $storefront));
+        $this->assertSame(1, preg_match('/\.user-chat-message\.is-mine \.user-chat-bubble\s*\{[^}]*background:\s*#2563eb;/s', $storefront));
+        $this->assertSame(1, preg_match('/\.user-chat-compose button\s*\{[^}]*background:\s*#2563eb;/s', $storefront));
+    }
+
+    public function test_user_popup_uses_the_class_prefix_expected_by_its_bubble_styles(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($user)
+            ->get(route('shop.home'))
+            ->assertOk()
+            ->assertSee('data-chat-class-prefix="user-chat"', false);
+
+        $script = file_get_contents(resource_path('js/chat.js'));
+        $this->assertIsString($script);
+        $this->assertStringContainsString(
+            'const classPrefix = root.dataset.chatClassPrefix || \'chat\';',
+            $script
+        );
     }
 
     public function test_admin_layout_exposes_presence_heartbeat_on_every_admin_page(): void
@@ -50,7 +119,8 @@ class ChatUiTest extends TestCase
             ->assertSee('data-admin-presence-heartbeat', false)
             ->assertSee(route('chat.admin.presence'), false)
             ->assertSee('setInterval(sendAdminPresence, 30000)', false)
-            ->assertDontSee('data-chat-page="admin"', false);
+            ->assertSee('id="chat-popup"', false)
+            ->assertSee('id="chat-toggle"', false);
     }
 
     public function test_authenticated_admin_gets_the_admin_chat_page_configuration(): void
@@ -64,6 +134,21 @@ class ChatUiTest extends TestCase
             ->assertSee('data-presence-url="'.route('chat.admin.presence').'"', false)
             ->assertSee('data-admin-channel="chat.admins"', false)
             ->assertSee('data-messages-template="'.url('/admin/nhan-tin/__CONVERSATION__/messages').'"', false);
+    }
+
+    public function test_admin_layout_exposes_global_chat_popup_widget(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('id="chat-toggle"', false)
+            ->assertSee('id="chat-popup"', false)
+            ->assertSee('id="chat-close"', false)
+            ->assertSee('id="chat-input"', false)
+            ->assertSee('id="send-btn"', false)
+            ->assertSee('data-chat-toggle-unread', false)
+            ->assertSee('data-admin-unread', false);
     }
 
     public function test_regular_user_cannot_open_the_admin_chat_page_or_api(): void

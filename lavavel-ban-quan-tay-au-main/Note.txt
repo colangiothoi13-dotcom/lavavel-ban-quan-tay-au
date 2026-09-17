@@ -1,0 +1,1 @@
+Để giỏ không mất khi logout, cần lưu dữ liệu giỏ theo user_id trong database, không thể chỉ dựa vào session. Mình sẽ thêm bảng cart_items, tự đồng bộ giỏ tạm vào tài khoản lúc đăng nhập/đăng xuất, và cập nhật các thao tác thêm, sửa số lượng, đổi biến thể, xóa, thanh toán theo kho lưu mới

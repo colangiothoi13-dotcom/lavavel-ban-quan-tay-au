@@ -147,6 +147,7 @@ function initializeUserChat(root) {
     const count = root.querySelector('[data-chat-count]');
     const unreadElement = root.querySelector('[data-chat-unread-count]');
     const currentUserId = root.dataset.chatUserId;
+    const classPrefix = root.dataset.chatClassPrefix || 'chat';
     const maxLength = Number(root.dataset.maxLength || MAX_MESSAGE_LENGTH);
     const seenIds = new Set();
     let realtimeFallbackTimer = null;
@@ -192,7 +193,7 @@ function initializeUserChat(root) {
                 seenIds,
                 message,
                 currentUserId,
-                'chat',
+                classPrefix,
             ));
             setUnreadCount(payload.unread);
             if (await markRead()) setUnreadCount(0);
@@ -219,7 +220,7 @@ function initializeUserChat(root) {
                 method: 'POST',
                 body: JSON.stringify({ body }),
             });
-            appendMessage(messagesElement, emptyElement, seenIds, payload.data, currentUserId, 'chat');
+            appendMessage(messagesElement, emptyElement, seenIds, payload.data, currentUserId, classPrefix);
             input.value = '';
             setCount(input, count, maxLength);
             clearError(errorElement);
@@ -231,7 +232,7 @@ function initializeUserChat(root) {
     }
 
     attachRealtime(root.dataset.channel, root.dataset.event, (message) => {
-        const inserted = appendMessage(messagesElement, emptyElement, seenIds, message, currentUserId, 'chat');
+        const inserted = appendMessage(messagesElement, emptyElement, seenIds, message, currentUserId, classPrefix);
         if (inserted && String(message.sender_id) !== String(currentUserId)) {
             setUnreadCount(Number(unreadElement?.textContent || 0) + 1);
             markRead().then((marked) => {
@@ -275,17 +276,17 @@ function initializeAdminChat(root) {
 
     function setSelectedState(conversation) {
         selectedConversationId = conversation ? String(conversation.id) : null;
-        selectedUser.textContent = conversation?.user_name || 'Chọn một khách hàng';
-        selectedHint.textContent = conversation
+        if (selectedUser) selectedUser.textContent = conversation?.user_name || 'Chọn một khách hàng';
+        if (selectedHint) selectedHint.textContent = conversation
             ? 'Bạn đang xem cuộc hội thoại riêng của khách hàng này.'
             : 'Những tin nhắn mới sẽ xuất hiện theo thời gian thực.';
-        input.disabled = !conversation;
-        submit.disabled = !conversation;
+        if (input) input.disabled = !conversation;
+        if (submit) submit.disabled = !conversation;
     }
 
     function renderConversations(conversations) {
-        listElement.replaceChildren();
-        listEmptyElement.hidden = conversations.length > 0;
+        if (listElement) listElement.replaceChildren();
+        if (listEmptyElement) listEmptyElement.hidden = conversations.length > 0;
         conversations.forEach((conversation) => {
             const button = document.createElement('button');
             button.type = 'button';
@@ -313,7 +314,10 @@ function initializeAdminChat(root) {
             button.append(row, preview, time);
             listElement.appendChild(button);
         });
-        totalUnread.textContent = String(conversations.reduce((sum, conversation) => sum + Number(conversation.unread || 0), 0));
+        const total = conversations.reduce((sum, conversation) => sum + Number(conversation.unread || 0), 0);
+        const toggleUnread = document.querySelector('[data-chat-toggle-unread]');
+        if (totalUnread) totalUnread.textContent = String(total);
+        if (toggleUnread) toggleUnread.textContent = String(total);
     }
 
     async function loadConversations() {
@@ -472,7 +476,9 @@ function initializeAdminChat(root) {
 }
 
 function initializeChat() {
-    const root = document.querySelector('[data-chat-page]');
+    const userRoot = document.querySelector('[data-chat-page="user"]');
+    const adminPopupRoot = document.querySelector('#chat-popup');
+    const root = userRoot || adminPopupRoot || document.querySelector('[data-chat-page]');
     if (!root) return;
     if (root.dataset.chatPage === 'admin') initializeAdminChat(root);
     if (root.dataset.chatPage === 'user') initializeUserChat(root);

@@ -9,19 +9,16 @@
     .admin-chat-total { display: inline-flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 999px; background: #fef3c7; color: #92400e; font-weight: 700; white-space: nowrap; }
     .admin-chat-alert { margin: 0 0 16px; padding: 11px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; }
     .admin-chat-alert[hidden] { display: none; }
-.admin-chat-layout { 
-    display: grid; 
-    /* 1. Làm thanh hội thoại (cột trái) bé đi: Giảm số px và % */
-    grid-template-columns: minmax(180px, 20%) minmax(0, 1fr); 
-    
-    /* 2. Làm khung chat cao (dài) hơn: Trừ đi ít pixel hơn (ví dụ giảm từ 210px xuống 120px) */
-    height: calc(100vh - 170px); 
-    
-    border: 1px solid #e2e8f0; 
-    border-radius: 14px; 
-    overflow: hidden; 
-    background: #f8fafc; 
-}    .admin-chat-conversations { padding: 12px; border-right: 1px solid #e2e8f0; background: #fff; overflow-y: auto; }
+    .admin-chat-layout {
+        display: grid;
+        grid-template-columns: minmax(180px, 20%) minmax(0, 1fr);
+        height: calc(100vh - 170px);
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #f8fafc;
+    }
+    .admin-chat-conversations { padding: 12px; border-right: 1px solid #e2e8f0; background: #fff; overflow-y: auto; }
     .admin-chat-conversations h2 { margin: 4px 8px 12px; font-size: 15px; }
     .admin-chat-list { display: grid; gap: 7px; }
     .admin-chat-conversation { width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -33,7 +30,6 @@
     .admin-chat-unread { min-width: 22px; padding: 2px 6px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 11px; text-align: center; }
     .admin-chat-unread[hidden], .admin-chat-empty[hidden] { display: none; }
     .admin-chat-empty { margin: 34px 8px; color: #64748b; font-size: 13px; text-align: center; }
-    .admin-chat-thread { display: flex; min-width: 0; flex-direction: column; }
     .admin-chat-thread { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
     .admin-chat-thread-heading { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background: #fff; }
     .admin-chat-thread-heading h2 { margin: 0 0 4px; font-size: 18px; }

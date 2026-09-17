@@ -29,11 +29,11 @@
         .btn-admin-logout { background-color: #ef4444; color: white; padding: 8px 16px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; border-radius: 4px; transition: 0.2s; }
         .btn-admin-logout:hover { background-color: #dc2626; }
         
-        .admin-content-area { min-height: 0; flex: 1; padding: 8px; overflow-y: auto; }
-        .admin-card { background-color: #ffffff; padding: 12px; border-radius: 4px; min-height: 100%; border-top: 4px solid #333; }
+        .admin-content-area { min-height: 0; flex: 1; padding: 1px 8px 0; overflow-y: auto; }
+        .admin-card { background-color: #ffffff; padding: 12px; border-radius: 4px; min-height: 100%; border-top: 4px solid #333; margin-top: 1px; }
 
         /* ================= PHẦN DÀNH CHO USER ================= */
-        .user-shell { display: flex; width: 100%; min-height: 100vh; background: #f1f5f9; }
+        .user-shell { display: flex; gap: 2px; width: 100%; min-height: 100vh; background: #e2e8f0; }
         .user-sidebar { position: relative; z-index: 20; width: 220px; background-color: #1f2937; color: white; display: flex; flex-direction: column; flex-shrink: 0; transition: width .25s ease; box-shadow: 10px 0 30px rgba(15, 23, 42, .12); }
         .user-shell--collapsed .user-sidebar { width: 78px; }
         .user-sidebar .sidebar-logo { height: 70px; background: linear-gradient(135deg, #d1e189 0%, #c4d66d 100%); color: #1f2937; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-weight: bold; font-size: 15px; border-bottom: 1px solid rgba(31, 41, 55, 0.1); }
@@ -53,7 +53,7 @@
 
         .user-menu-backdrop { position: fixed; inset: 0; z-index: 1000; border: 0; background: rgba(15, 23, 42, .55); opacity: 0; visibility: hidden; cursor: pointer; transition: opacity .25s ease, visibility .25s ease; }
         .user-menu-backdrop.is-open { opacity: 1; visibility: visible; }
-        .user-main { width: 100%; min-width: 0; flex: 1; display: flex; flex-direction: column; background-color: #f1f5f9; }
+        .user-main { width: 100%; min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; background-color: #f1f5f9; }
         .user-header { height: 70px; background-color: #1f2937; display: flex; justify-content: space-between; align-items: center; padding: 0 20px 0 14px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); }
         .user-menu-toggle { width: 42px; height: 42px; margin-right: 12px; border: 1px solid #475569; border-radius: 7px; background: #334155; color: #fff; font-size: 25px; line-height: 1; cursor: pointer; flex-shrink: 0; transition: background .2s, border-color .2s; }
         .user-menu-toggle:hover, .user-menu-toggle:focus-visible { background: #475569; border-color: #64748b; outline: none; }
@@ -78,8 +78,21 @@
         .search-suggestion img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; flex-shrink: 0; }
         .btn-user-logout { background-color: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
         .btn-user-logout:hover { background-color: #dc2626; }
-        .user-content-area { flex: 1; padding: 28px; overflow-y: auto; }
-        .user-card { background-color: #ffffff; padding: 30px; border-radius: 14px; min-height: calc(100vh - 70px - 56px); box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+        .user-content-area {
+            flex: 1;
+            padding: 0;
+            overflow-y: auto;
+        }
+        .user-card {
+            background-color: #ffffff;
+            padding: 0;
+            border-radius: 20px;
+            min-height: calc(100vh - 70px);
+            box-shadow: none;
+            border: 1px solid #e2e8f0;
+            margin: 0;
+            overflow: hidden;
+        }
 
         @media (max-width: 900px) {
             .user-shell { position: relative; }
@@ -92,8 +105,8 @@
             .search-wrapper { width: auto; min-width: 0; flex: 1; margin-left: 12px; }
             .user-header .actions { gap: 10px; margin-left: 12px; }
             .header-user-profile span { display: none; }
-            .user-content-area { padding: 18px; }
-            .user-card { padding: 20px; min-height: auto; }
+            .user-content-area { padding: 0; }
+            .user-card { padding: 0; min-height: auto; margin: 0; }
         }
         @media (max-width: 640px) {
             .user-header .logo, .search-wrapper { display: none; }
@@ -114,7 +127,6 @@
                 <li><a href="{{ route('products.index') }}" class="{{ Request::is('products*') ? 'active' : '' }}">Sản Phẩm</a></li>
                 <li><a href="{{ route('admin.orders.index') }}" class="{{ Request::is('admin/orders*') ? 'active' : '' }}">Đơn hàng</a></li>
                 <li><a href="{{ route('admin.reports.index') }}" class="{{ Request::is('admin/reports*') ? 'active' : '' }}">Thống kê báo cáo</a></li>
-                <li><a href="{{ route('chat.admin.index') }}" class="{{ Request::is('admin/nhan-tin*') ? 'active' : '' }}">Nhắn tin</a></li>
                 <li class="sidebar-account">
                     <a href="{{ route('admin.profile.show') }}" class="{{ Request::is('admin/profile*') ? 'active' : '' }}">Tài khoản</a>
                 </li>
@@ -125,13 +137,6 @@
             <div class="admin-header">
                 <div class="title">HỆ THỐNG QUẢN LÝ QUẦN TÂY ÂU</div>
                 <div class="actions">
-                    <a href="{{ route('chat.admin.index') }}" title="Tin nhắn" style="position: relative; justify-content: center; color: #d1d1d1; transition: color .2s;">
-                        <svg viewBox="0 0 24 24" style="width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                        @php($unreadAdmin = app(App\Services\Chat\ChatService::class)->unreadForAdmins())
-                        @if($unreadAdmin > 0)
-                            <span style="position: absolute; top: -5px; right: -8px; background: #ef4444; color: #fff; font-size: 10px; font-weight: bold; border-radius: 50%; min-width: 18px; min-height: 18px; display: flex; align-items: center; justify-content: center; line-height: 1;">{{ $unreadAdmin }}</span>
-                        @endif
-                    </a>
                     <a href="{{ route('admin.profile.show') }}">
                         @if(auth()->user()->avatar)
                             <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Ảnh đại diện của {{ auth()->user()->name }}">
@@ -188,7 +193,588 @@
             }());
         </script>
 
+        @vite(['resources/js/app.js'])
+
+        @unless(request()->routeIs('chat.admin.index'))
+            <style>
+                #chat-toggle {
+                    position: fixed;
+                    right: 24px;
+                    bottom: 24px;
+                    z-index: 2000;
+                    width: 58px;
+                    height: 58px;
+                    border: none;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                    color: #fff;
+                    font-size: 24px;
+                    box-shadow: 0 12px 25px rgba(37, 99, 235, 0.32);
+                    cursor: pointer;
+                }
+                .admin-chat-badge {
+                    position: absolute;
+                    top: -4px;
+                    right: -4px;
+                    min-width: 20px;
+                    height: 20px;
+                    padding: 0 6px;
+                    border-radius: 999px;
+                    background: #ef4444;
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: bold;
+                    line-height: 20px;
+                    text-align: center;
+                }
+                .admin-chat-page {
+                    position: fixed;
+                    right: 24px;
+                    bottom: 92px;
+                    z-index: 1999;
+                    width: min(760px, calc(100vw - 24px));
+                    color: #1e293b;
+                }
+                .admin-chat-window {
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    background: #fff;
+                    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.2);
+                }
+                .admin-chat-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    padding: 14px 18px;
+                    background: linear-gradient(135deg, #0f172a, #1e293b);
+                    color: #fff;
+                }
+                .admin-chat-header h2 {
+                    margin: 0;
+                    font-size: 18px;
+                }
+                .admin-chat-header small {
+                    display: block;
+                    margin-top: 2px;
+                    color: #cbd5e1;
+                }
+                #chat-close {
+                    width: 32px;
+                    height: 32px;
+                    border: 0;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.12);
+                    color: #fff;
+                    font-size: 28px;
+                    line-height: 1;
+                    cursor: pointer;
+                }
+                .admin-chat-layout {
+                    display: grid;
+                    grid-template-columns: minmax(200px, 28%) minmax(0, 1fr);
+                    height: 500px;
+                    background: #f8fafc;
+                }
+                .admin-chat-conversations {
+                    padding: 12px;
+                    border-right: 1px solid #e2e8f0;
+                    background: #fff;
+                    overflow-y: auto;
+                }
+                .admin-chat-conversations h3 {
+                    margin: 4px 8px 12px;
+                    font-size: 15px;
+                }
+                .admin-chat-list {
+                    display: grid;
+                    gap: 7px;
+                }
+                .admin-chat-conversation {
+                    width: 100%;
+                    padding: 12px;
+                    border: 1px solid transparent;
+                    border-radius: 10px;
+                    background: transparent;
+                    color: inherit;
+                    text-align: left;
+                    cursor: pointer;
+                }
+                .admin-chat-conversation:hover, .admin-chat-conversation.is-selected {
+                    border-color: #dbeafe;
+                    background: #eff6ff;
+                }
+                .admin-chat-conversation-row {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                }
+                .admin-chat-conversation-name {
+                    overflow: hidden;
+                    font-weight: 700;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .admin-chat-conversation-preview {
+                    display: block;
+                    margin-top: 5px;
+                    overflow: hidden;
+                    color: #64748b;
+                    font-size: 12px;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .admin-chat-conversation-time {
+                    margin-top: 5px;
+                    color: #94a3b8;
+                    font-size: 11px;
+                }
+                .admin-chat-unread {
+                    min-width: 22px;
+                    padding: 2px 6px;
+                    border-radius: 999px;
+                    background: #dc2626;
+                    color: #fff;
+                    font-size: 11px;
+                    text-align: center;
+                }
+                .admin-chat-unread[hidden], .admin-chat-empty[hidden] {
+                    display: none;
+                }
+                .admin-chat-empty {
+                    margin: 34px 8px;
+                    color: #64748b;
+                    font-size: 13px;
+                    text-align: center;
+                }
+                .admin-chat-thread {
+                    display: flex;
+                    min-width: 0;
+                    min-height: 0;
+                    flex-direction: column;
+                }
+                .admin-chat-thread-heading {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid #e2e8f0;
+                    background: #fff;
+                }
+                .admin-chat-thread-heading h2 {
+                    margin: 0 0 4px;
+                    font-size: 18px;
+                }
+                .admin-chat-thread-heading p {
+                    margin: 0;
+                    color: #64748b;
+                    font-size: 13px;
+                }
+                .admin-chat-messages {
+                    flex: 1;
+                    min-height: 200px;
+                    margin: 0;
+                    padding: 16px 18px 8px;
+                    overflow-y: auto;
+                    list-style: none;
+                }
+                .admin-chat-message {
+                    display: flex;
+                    margin-bottom: 14px;
+                }
+                .admin-chat-message.is-mine {
+                    justify-content: flex-end;
+                }
+                .admin-chat-bubble {
+                    max-width: min(78%, 620px);
+                    padding: 11px 14px;
+                    border-radius: 14px 14px 14px 4px;
+                    background: #fff;
+                    box-shadow: 0 2px 8px rgba(15, 23, 42, .06);
+                }
+                .admin-chat-message.is-mine .admin-chat-bubble {
+                    border-radius: 14px 14px 4px 14px;
+                    background: #2563eb;
+                    color: #fff;
+                }
+                .admin-chat-author {
+                    display: block;
+                    margin-bottom: 4px;
+                    color: #64748b;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+                .admin-chat-message.is-mine .admin-chat-author {
+                    color: #dbeafe;
+                }
+                .admin-chat-body {
+                    margin: 0;
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                    line-height: 1.5;
+                }
+                .admin-chat-time {
+                    display: block;
+                    margin-top: 6px;
+                    color: #94a3b8;
+                    font-size: 11px;
+                }
+                .admin-chat-message.is-mine .admin-chat-time {
+                    color: #dbeafe;
+                }
+                .admin-chat-compose {
+                    display: flex;
+                    align-items: flex-end;
+                    gap: 12px;
+                    padding: 12px 16px 16px;
+                    border-top: 1px solid #e2e8f0;
+                    background: #fff;
+                }
+                .admin-chat-compose textarea {
+                    flex: 1;
+                    min-height: 48px;
+                    max-height: 120px;
+                    resize: vertical;
+                    padding: 12px 14px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 10px;
+                    font: inherit;
+                    line-height: 1.4;
+                }
+                .admin-chat-compose textarea:focus {
+                    border-color: #2563eb;
+                    outline: 2px solid rgba(37, 99, 235, .18);
+                }
+                .admin-chat-compose button {
+                    min-height: 48px;
+                    padding: 0 20px;
+                    border: 0;
+                    border-radius: 10px;
+                    background: #2563eb;
+                    color: #fff;
+                    font-weight: 700;
+                    cursor: pointer;
+                }
+                .admin-chat-compose button:disabled {
+                    cursor: wait;
+                    opacity: .6;
+                }
+                .admin-chat-compose-meta {
+                    display: flex;
+                    justify-content: space-between;
+                    color: #64748b;
+                    font-size: 12px;
+                }
+                .admin-chat-alert {
+                    margin: 0;
+                    padding: 11px 14px;
+                    border: 1px solid #fecaca;
+                    border-radius: 8px;
+                    background: #fef2f2;
+                    color: #991b1b;
+                }
+                .admin-chat-alert[hidden] {
+                    display: none;
+                }
+                @media (max-width: 760px) {
+                    .admin-chat-page {
+                        right: 12px;
+                        left: 12px;
+                        width: auto;
+                    }
+                    .admin-chat-layout {
+                        grid-template-columns: 1fr;
+                        height: 520px;
+                    }
+                    .admin-chat-conversations {
+                        max-height: 180px;
+                        border-right: 0;
+                        border-bottom: 1px solid #e2e8f0;
+                    }
+                    .admin-chat-compose {
+                        flex-wrap: wrap;
+                    }
+                    .admin-chat-compose textarea {
+                        flex-basis: calc(100% - 62px);
+                    }
+                    .admin-chat-compose button {
+                        width: 50px;
+                        padding: 0;
+                        font-size: 0;
+                    }
+                    .admin-chat-compose button::after {
+                        content: '➤';
+                        font-size: 18px;
+                    }
+                    .admin-chat-compose-meta {
+                        width: 100%;
+                    }
+                }
+            </style>
+
+            <button id="chat-toggle" type="button" aria-label="Mở hộp chat">
+                💬
+                <span class="admin-chat-badge" data-chat-toggle-unread>0</span>
+            </button>
+
+            <section
+                id="chat-popup"
+                class="admin-chat-page"
+                data-chat-page="admin"
+                data-admin-id="{{ auth()->id() }}"
+                data-conversations-url="{{ route('chat.admin.conversations') }}"
+                data-messages-template="{{ route('chat.admin.messages', ['conversation' => '__CONVERSATION__']) }}"
+                data-send-template="{{ route('chat.admin.messages.store', ['conversation' => '__CONVERSATION__']) }}"
+                data-read-template="{{ route('chat.admin.read', ['conversation' => '__CONVERSATION__']) }}"
+                data-presence-url="{{ route('chat.admin.presence') }}"
+                data-admin-channel="chat.admins"
+                data-event="chat.message.sent"
+                data-max-length="2000"
+                style="display: none;"
+            >
+                <div class="admin-chat-window">
+                    <header class="admin-chat-header">
+                        <div>
+                            <h2>Chat Admin</h2>
+                            <small>Hỗ trợ khách hàng</small>
+                        </div>
+                        <button id="chat-close" type="button" aria-label="Đóng hộp chat">×</button>
+                    </header>
+
+                    <div class="admin-chat-badge admin-chat-badge--popup" data-admin-unread>0</div>
+
+                    <div class="admin-chat-layout">
+                        <aside class="admin-chat-conversations" aria-label="Danh sách cuộc hội thoại">
+                            <h3>Khách hàng</h3>
+                            <div id="user-list" class="admin-chat-list" data-admin-conversations></div>
+                            <p class="admin-chat-empty" data-admin-empty>Chưa có cuộc hội thoại nào.</p>
+                        </aside>
+
+                        <section class="admin-chat-thread" aria-labelledby="admin-chat-selected-user">
+                            <header class="admin-chat-thread-heading">
+                                <h2 id="admin-chat-selected-user" data-admin-selected-user>Chọn một khách hàng</h2>
+                                <p data-admin-selected-hint>Những tin nhắn mới sẽ xuất hiện theo thời gian thực.</p>
+                            </header>
+
+                            <ol id="chat-messages" class="admin-chat-messages" data-chat-messages aria-live="polite" aria-label="Tin nhắn trong cuộc hội thoại"></ol>
+                            <p class="admin-chat-empty" data-chat-empty>Chọn cuộc hội thoại để bắt đầu hỗ trợ.</p>
+
+                            <form class="admin-chat-compose" data-chat-form>
+                                <textarea id="chat-input" name="body" data-chat-input maxlength="2000" placeholder="Nhập tin nhắn..." aria-label="Nội dung trả lời" required disabled></textarea>
+                                <button id="send-btn" type="submit" data-chat-submit disabled>Gửi</button>
+                                <div class="admin-chat-compose-meta">
+                                    <span>Tin nhắn tối đa 2000 ký tự.</span>
+                                    <span data-chat-count>0/2000</span>
+                                </div>
+                            </form>
+                        </section>
+                    </div>
+                </div>
+
+                <div class="admin-chat-alert" data-chat-error role="alert" hidden></div>
+            </section>
+
+            <script>
+                (function () {
+                    const toggleButton = document.getElementById('chat-toggle');
+                    const popup = document.getElementById('chat-popup');
+                    const closeButton = document.getElementById('chat-close');
+
+                    if (!toggleButton || !popup || !closeButton) return;
+
+                    const openPopup = () => {
+                        popup.style.display = 'block';
+                    };
+
+                    const closePopup = () => {
+                        popup.style.display = 'none';
+                    };
+
+                    toggleButton.addEventListener('click', openPopup);
+                    closeButton.addEventListener('click', closePopup);
+                })();
+            </script>
+        @endunless
+
     @else
+        @auth
+        @unless(request()->routeIs('chat.user.index'))
+            @vite(['resources/js/app.js'])
+            <style>
+                #user-chat-toggle {
+                    position: fixed;
+                    right: 24px;
+                    bottom: 24px;
+                    z-index: 2001;
+                    width: 58px;
+                    height: 58px;
+                    border: none;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #111827, #1f2937);
+                    color: #fff;
+                    font-size: 24px;
+                    box-shadow: 0 12px 25px rgba(15, 23, 42, 0.26);
+                    cursor: pointer;
+                }
+                .user-chat-badge {
+                    position: absolute;
+                    top: -4px;
+                    right: -4px;
+                    min-width: 20px;
+                    height: 20px;
+                    padding: 0 6px;
+                    border-radius: 999px;
+                    background: #ef4444;
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: bold;
+                    line-height: 20px;
+                    text-align: center;
+                }
+                .user-chat-popup {
+                    position: fixed;
+                    right: 24px;
+                    bottom: 96px;
+                    z-index: 2000;
+                    width: min(760px, calc(100vw - 24px));
+                    color: #1e293b;
+                }
+                .user-chat-window {
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    background: #fff;
+                    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.2);
+                }
+                .user-chat-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    padding: 14px 18px;
+                    background: linear-gradient(135deg, #0f172a, #1e293b);
+                    color: #fff;
+                }
+                .user-chat-header h2 {
+                    margin: 0;
+                    font-size: 18px;
+                }
+                .user-chat-header small {
+                    display: block;
+                    margin-top: 2px;
+                    color: #cbd5e1;
+                }
+                #user-chat-close {
+                    width: 32px;
+                    height: 32px;
+                    border: 0;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.12);
+                    color: #fff;
+                    font-size: 28px;
+                    line-height: 1;
+                    cursor: pointer;
+                }
+                .user-chat-layout {
+                    display: flex;
+                    flex-direction: column;
+                    height: 500px;
+                    background: #f8fafc;
+                }
+                .user-chat-messages {
+                    flex: 1;
+                    min-height: 0;
+                    margin: 0;
+                    padding: 16px 18px;
+                    overflow-y: auto;
+                    list-style: none;
+                    background: #f8fafc;
+                }
+                .user-chat-message { display: flex; margin-bottom: 14px; }
+                .user-chat-message.is-mine { justify-content: flex-end; }
+                .user-chat-bubble { max-width: min(78%, 620px); padding: 11px 14px; border-radius: 14px 14px 14px 4px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42,.08); }
+                .user-chat-message.is-mine .user-chat-bubble { border-color: #2563eb; border-radius: 14px 14px 4px 14px; background: #2563eb; color: #fff; }
+                .user-chat-author { display: block; margin-bottom: 4px; color: #64748b; font-size: 12px; font-weight: 700; }
+                .user-chat-message.is-mine .user-chat-author { color: #fff; }
+                .user-chat-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+                .user-chat-time { display: block; margin-top: 6px; color: #94a3b8; font-size: 11px; }
+                .user-chat-message.is-mine .user-chat-time { color: #dbeafe; }
+                .user-chat-compose { display: flex; align-items: flex-end; gap: 12px; padding: 12px 16px 16px; border-top: 1px solid #e2e8f0; background: #fff; }
+                .user-chat-compose textarea { flex: 1; min-height: 48px; max-height: 120px; resize: vertical; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; line-height: 1.4; }
+                .user-chat-compose textarea:focus { border-color: #b4860b; outline: 2px solid rgba(180, 134, 11, 0.18); }
+                .user-chat-compose button { min-height: 48px; padding: 0 20px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
+                .user-chat-compose button:disabled { cursor: wait; opacity: .6; }
+                .user-chat-compose-meta { display: flex; justify-content: space-between; color: #64748b; font-size: 12px; }
+                .user-chat-alert { margin: 0; padding: 11px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; }
+                .user-chat-alert[hidden] { display: none; }
+                @media (max-width: 640px) { .user-chat-popup { right: 12px; left: 12px; width: auto; } .user-chat-layout { height: 440px; } .user-chat-compose { flex-wrap: wrap; } .user-chat-compose textarea { flex-basis: calc(100% - 62px); } .user-chat-compose button { width: 50px; padding: 0; font-size: 0; } .user-chat-compose button::after { content: '➤'; font-size: 18px; } .user-chat-compose-meta { width: 100%; } }
+            </style>
+
+            <button id="user-chat-toggle" type="button" aria-label="Mở hộp chat user">
+                💬
+                <span class="user-chat-badge" data-chat-unread-count>0</span>
+            </button>
+
+            <section
+                id="user-chat-popup"
+                class="user-chat-popup"
+                data-chat-page="user"
+                data-chat-class-prefix="user-chat"
+                data-chat-user-id="{{ auth()->id() }}"
+                data-overview-url="{{ route('chat.user.overview') }}"
+                data-messages-url="{{ route('chat.user.messages') }}"
+                data-send-url="{{ route('chat.user.messages.store') }}"
+                data-read-url="{{ route('chat.user.read') }}"
+                data-status-url="{{ route('chat.user.admin-status') }}"
+                data-channel="chat.user.{{ auth()->id() }}"
+                data-event="chat.message.sent"
+                data-max-length="2000"
+                style="display: none;"
+            >
+                <div class="user-chat-window">
+                    <header class="user-chat-header">
+                        <div>
+                            <h2>Nhắn tin với admin</h2>
+                            <small>Hỗ trợ khách hàng</small>
+                        </div>
+                        <button id="user-chat-close" type="button" aria-label="Đóng hộp chat">×</button>
+                    </header>
+
+                    <div class="user-chat-layout">
+                        <ol class="user-chat-messages" data-chat-messages aria-live="polite" aria-label="Lịch sử tin nhắn"></ol>
+                        <p class="chat-empty" data-chat-empty>Chưa có tin nhắn. Bạn hãy gửi lời nhắn đầu tiên nhé.</p>
+
+                        <form class="user-chat-compose" data-chat-form>
+                            <textarea name="body" data-chat-input maxlength="2000" placeholder="Viết tin nhắn..." aria-label="Nội dung tin nhắn" required></textarea>
+                            <button type="submit" data-chat-submit>Gửi</button>
+                            <div class="user-chat-compose-meta">
+                                <span>Tin nhắn tối đa 2000 ký tự.</span>
+                                <span data-chat-count>0/2000</span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="user-chat-alert" data-chat-error role="alert" hidden></div>
+            </section>
+
+            <script>
+                (function () {
+                    const toggleButton = document.getElementById('user-chat-toggle');
+                    const popup = document.getElementById('user-chat-popup');
+                    const closeButton = document.getElementById('user-chat-close');
+
+                    if (!toggleButton || !popup || !closeButton) return;
+
+                    const openPopup = () => { popup.style.display = 'block'; };
+                    const closePopup = () => { popup.style.display = 'none'; };
+
+                    toggleButton.addEventListener('click', openPopup);
+                    closeButton.addEventListener('click', closePopup);
+                })();
+            </script>
+        @endunless
+        @endauth
+
         {{-- ================= GIAO DIỆN USER ================= --}}
         <div class="user-shell" id="user-shell">
             <nav class="user-sidebar" id="user-navigation" data-user-menu aria-label="Điều hướng khách hàng" aria-hidden="false">
@@ -200,7 +786,6 @@
                     <li><a href="{{ url('gio-hang') }}" class="{{ Request::is('gio-hang*') ? 'active' : '' }}"><span class="menu-icon">📦</span><span class="nav-label">Giỏ hàng</span></a></li>
                     <li><a href="{{ route('user.addresses.index') }}" class="{{ Request::is('user/addresses*') ? 'active' : '' }}"><span class="menu-icon">📍</span><span class="nav-label">Địa chỉ</span></a></li>
                     <li><a href="{{ route('user.orders.index', ['status' => 'completed']) }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}"><span class="menu-icon">🛍️</span><span class="nav-label">Đơn mua</span></a></li>
-                    <li><a href="{{ route('chat.user.index') }}" class="{{ Request::is('nhan-tin*') ? 'active' : '' }}"><span class="menu-icon">💬</span><span class="nav-label">Nhắn tin</span></a></li>
                     <li class="sidebar-account">
                         <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}"><span class="menu-icon">👤</span><span class="nav-label">Hồ sơ</span></a>
                     </li>
@@ -232,13 +817,6 @@
                                     <circle cx="10" cy="20" r="1"></circle>
                                     <circle cx="18" cy="20" r="1"></circle>
                                 </svg>
-                            </a>
-                            <a href="{{ route('chat.user.index') }}" class="header-cart-link" aria-label="Tin nhắn" title="Tin nhắn" style="position: relative;">
-                                <svg viewBox="0 0 24 24" style="width: 23px; height: 23px;" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                                @php($unreadUser = app(App\Services\Chat\ChatService::class)->unreadForUser(auth()->user()))
-                                @if($unreadUser > 0)
-                                    <span style="position: absolute; top: -1px; right: -3px; background: #ef4444; color: #fff; font-size: 10px; font-weight: bold; border-radius: 50%; min-width: 17px; min-height: 17px; display: flex; align-items: center; justify-content: center; line-height: 1;">{{ $unreadUser }}</span>
-                                @endif
                             </a>
                             <a href="{{ route('user.profile.show') }}" class="header-user-profile">
                                 @if(auth()->user()->avatar)
@@ -314,12 +892,39 @@
             const shell = document.getElementById('user-shell');
             const toggle = document.querySelector('[data-user-menu-toggle]');
             const menu = document.querySelector('[data-user-menu]');
-            const sidebarToggle = document.querySelector('[data-user-sidebar-collapse]');
             const backdrop = document.querySelector('[data-user-menu-backdrop]');
             if (!toggle || !menu || !backdrop || !shell) return;
 
+            const STORAGE_KEY = 'lavabeo.userSidebarCollapsed';
+
             function isMobile() {
                 return window.innerWidth <= 900;
+            }
+
+            function saveSidebarState(collapsed) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
+                } catch (error) {
+                    // localStorage có thể bị chặn; không làm vỡ giao diện.
+                }
+            }
+
+            function readSidebarState() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    return raw === null ? true : raw === '1';
+                } catch (error) {
+                    return true;
+                }
+            }
+
+            function syncDesktopState() {
+                const collapsed = shell.classList.contains('user-shell--collapsed');
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+                toggle.setAttribute('aria-label', collapsed ? 'Mở menu' : 'Thu gọn menu');
+                menu.setAttribute('aria-hidden', 'false');
+                backdrop.classList.remove('is-open');
+                backdrop.tabIndex = -1;
             }
 
             function setMenu(open) {
@@ -333,12 +938,19 @@
                     return;
                 }
 
-                shell.classList.toggle('user-shell--collapsed', !open);
-                toggle.setAttribute('aria-expanded', String(open));
-                toggle.setAttribute('aria-label', open ? 'Thu gọn menu' : 'Mở menu');
-                menu.setAttribute('aria-hidden', 'false');
-                backdrop.classList.remove('is-open');
-                backdrop.tabIndex = -1;
+                const nextCollapsed = !open;
+                shell.classList.toggle('user-shell--collapsed', nextCollapsed);
+                saveSidebarState(nextCollapsed);
+                syncDesktopState();
+            }
+
+            shell.classList.toggle('user-shell--collapsed', readSidebarState());
+            if (isMobile()) {
+                menu.setAttribute('aria-hidden', 'true');
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-label', 'Mở menu');
+            } else {
+                syncDesktopState();
             }
 
             toggle.addEventListener('click', function () {
@@ -347,24 +959,11 @@
                     return;
                 }
 
-                const collapsed = shell.classList.contains('user-shell--collapsed');
-                shell.classList.toggle('user-shell--collapsed', !collapsed);
-                toggle.setAttribute('aria-expanded', String(!collapsed));
-                toggle.setAttribute('aria-label', collapsed ? 'Thu gọn menu' : 'Mở menu');
+                const nextCollapsed = !shell.classList.contains('user-shell--collapsed');
+                shell.classList.toggle('user-shell--collapsed', nextCollapsed);
+                saveSidebarState(nextCollapsed);
+                syncDesktopState();
             });
-
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', function () {
-                    if (isMobile()) {
-                        setMenu(false);
-                        return;
-                    }
-                    const collapsed = shell.classList.contains('user-shell--collapsed');
-                    shell.classList.toggle('user-shell--collapsed', !collapsed);
-                    toggle.setAttribute('aria-expanded', String(!collapsed));
-                    toggle.setAttribute('aria-label', collapsed ? 'Thu gọn menu' : 'Mở menu');
-                });
-            }
 
             backdrop.addEventListener('click', function () { setMenu(false); });
             document.addEventListener('keydown', function (event) {
@@ -379,12 +978,13 @@
                     backdrop.classList.remove('is-open');
                     menu.setAttribute('aria-hidden', 'true');
                     toggle.setAttribute('aria-expanded', 'false');
+                    toggle.setAttribute('aria-label', 'Mở menu');
                     backdrop.tabIndex = -1;
                     return;
                 }
-                shell.classList.remove('user-shell--collapsed');
-                menu.setAttribute('aria-hidden', 'false');
-                toggle.setAttribute('aria-expanded', 'true');
+
+                shell.classList.toggle('user-shell--collapsed', readSidebarState());
+                syncDesktopState();
             });
         }());
 
