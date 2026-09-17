@@ -403,7 +403,7 @@ class MomoPaymentTest extends TestCase
         $this->assertSame('refund_pending', $order->momoPaymentAttempts()->where('momo_order_id', $secondOrderId)->value('status'));
 
         $admin = User::factory()->create(['role' => 'admin']);
-        $this->actingAs($admin)->get(route('admin.orders.index'))
+        $this->actingAs($admin)->get(route('admin.orders.show', $order))
             ->assertSee('Xác nhận đã hoàn tiền');
         $this->get(route('admin.reports.index'))
             ->assertViewHas('totalRevenue', fn ($total) => (float) $total === 100000.0);

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminOrderController;
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OrderController;
@@ -96,6 +97,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
         Route::middleware('admin')->group(function () {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
+            Route::post('/orders/bulk/print', [AdminOrderController::class, 'bulkPrint'])->name('admin.orders.bulk.print');
+            Route::post('/orders/bulk/export', [AdminOrderController::class, 'bulkExport'])->name('admin.orders.bulk.export');
+            Route::post('/orders/bulk/ghn', [AdminOrderController::class, 'bulkGhn'])->name('admin.orders.bulk.ghn');
+            Route::post('/orders/bulk/archive', [AdminOrderController::class, 'bulkArchive'])->name('admin.orders.bulk.archive');
+            Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
             Route::patch('/orders/confirm-all', [AdminOrderController::class, 'confirmAll'])->name('admin.orders.confirm-all');
             Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('admin.orders.status');
             Route::patch('/orders/{order}/payment', [AdminOrderController::class, 'updatePayment'])->name('admin.orders.payment');
@@ -106,6 +112,13 @@ Route::prefix('admin')->group(function () {
             Route::get('/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
             Route::resource('categories', CategoryController::class);
             Route::resource('products', ProductController::class);
+
+            Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+            Route::get('/users/create', [AdminUserController::class, 'create'])->name('admin.users.create');
+            Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+            Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('admin.users.edit');
+            Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+            Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
         });
     });
 });

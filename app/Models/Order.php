@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
+    public const SHIPPING_PROVIDER_GHN = 'ghn';
+
     public const PAYMENT_METHOD_CASH = 'cash';
     public const PAYMENT_METHOD_COD = 'cod';
     public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
@@ -39,6 +41,7 @@ class Order extends Model
         'ghn_district_id',
         'ghn_ward_code',
         'ghn_order_code',
+        'shipping_provider',
     ];
 
     protected function casts(): array

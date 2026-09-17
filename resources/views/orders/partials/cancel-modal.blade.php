@@ -15,6 +15,7 @@
         <form id="cancel-order-form" method="POST">
             @csrf
             @method('PATCH')
+            <input type="hidden" name="status" value="cancelled">
             <label for="cancellation-reason">Lý do hủy đơn <b>*</b></label>
             <textarea id="cancellation-reason" name="cancellation_reason" rows="4" minlength="5" maxlength="500" placeholder="Nhập lý do cụ thể (ít nhất 5 ký tự)..." required></textarea>
             <div class="cancel-character-count"><span id="cancel-reason-count">0</span>/500</div>
