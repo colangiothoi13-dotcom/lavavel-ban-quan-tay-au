@@ -102,13 +102,10 @@ class StorefrontController
         ])->values());
     }
 
-    public function show(Product $product)
+    public function show(Request $request, Product $product)
     {
         $product->load('variants');
-
-        if (request()->user()) {
-            request()->user()->productViews()->firstOrCreate(['product_id' => $product->id]);
-        }
+        $this->recordProductView($request, $product);
 
         return view('shop.show', [
             'product' => $product,
@@ -149,8 +146,7 @@ class StorefrontController
             ->join('user_product_views', 'user_product_views.product_id', '=', 'products.id')
             ->where('user_product_views.user_id', $request->user()->id)
             ->select('products.*')
-            ->distinct()
-            ->orderByDesc('user_product_views.created_at')
+            ->orderByDesc('user_product_views.updated_at')
             ->with('variants')
             ->paginate(12);
 
@@ -217,16 +213,27 @@ class StorefrontController
         return view('shop.recommendations', compact('products'));
     }
 
-    public function showVariant(Product $product, ProductVariant $variant)
+    public function showVariant(Request $request, Product $product, ProductVariant $variant)
     {
         abort_unless($variant->product_id === $product->id, 404);
         $product->load('variants');
+        $this->recordProductView($request, $product);
 
         return view('shop.show', [
             'product' => $product,
             'selectedVariant' => $variant,
             'layout' => request()->user() ? 'layouts.app' : 'layouts.shop',
         ]);
+    }
+
+    private function recordProductView(Request $request, Product $product): void
+    {
+        if ($request->user()) {
+            $request->user()->productViews()->updateOrCreate(
+                ['product_id' => $product->id],
+                ['updated_at' => now()]
+            );
+        }
     }
 
     public function cart(Request $request)
