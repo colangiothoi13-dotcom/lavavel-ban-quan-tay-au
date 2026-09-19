@@ -9,23 +9,28 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Keep the newest view for each user/product pair; on timestamp ties,
-        // the largest id is the deterministic winner.
-        DB::table('user_product_views as older')
-            ->whereExists(function ($query) {
-                $query->selectRaw('1')
-                    ->from('user_product_views as newer')
-                    ->whereColumn('newer.user_id', 'older.user_id')
-                    ->whereColumn('newer.product_id', 'older.product_id')
-                    ->where(function ($query) {
-                        $query->whereColumn('newer.updated_at', '>', 'older.updated_at')
-                            ->orWhere(function ($query) {
-                                $query->whereColumn('newer.updated_at', 'older.updated_at')
-                                    ->whereColumn('newer.id', '>', 'older.id');
-                            });
-                    });
-            })
-            ->delete();
+        // Process each pair separately so MySQL never deletes from a table
+        // while selecting from it in a subquery. Non-NULL timestamps rank
+        // above NULL; within either group, the latest timestamp / largest id wins.
+        DB::table('user_product_views')
+            ->select('user_id', 'product_id')
+            ->distinct()
+            ->get()
+            ->each(function ($pair) {
+                $winner = DB::table('user_product_views')
+                    ->where('user_id', $pair->user_id)
+                    ->where('product_id', $pair->product_id)
+                    ->orderByRaw('CASE WHEN updated_at IS NULL THEN 1 ELSE 0 END ASC')
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
+                    ->value('id');
+
+                DB::table('user_product_views')
+                    ->where('user_id', $pair->user_id)
+                    ->where('product_id', $pair->product_id)
+                    ->where('id', '<>', $winner)
+                    ->delete();
+            });
 
         Schema::table('user_product_views', function (Blueprint $table) {
             $table->unique(['user_id', 'product_id'], 'user_product_views_user_id_product_id_unique');
