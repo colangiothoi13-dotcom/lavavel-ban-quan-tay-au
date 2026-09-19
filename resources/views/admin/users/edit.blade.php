@@ -17,28 +17,24 @@
         <div class="field-grid">
             <div class="field">
                 <label for="name">Họ và tên</label>
-                <input id="name" name="name" value="{{ old('name', $user->name) }}" required>
-                @error('name')<small class="error">{{ $message }}</small>@enderror
+                <input id="name" name="name" value="{{ old('name', $user->name) }}" readonly>
             </div>
             <div class="field">
                 <label for="email">Email</label>
-                <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required>
-                @error('email')<small class="error">{{ $message }}</small>@enderror
+                <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" readonly>
             </div>
             <div class="field">
                 <label for="phone">Số điện thoại</label>
-                <input id="phone" name="phone" value="{{ old('phone', $user->phone) }}">
-                @error('phone')<small class="error">{{ $message }}</small>@enderror
+                <input id="phone" name="phone" value="{{ old('phone', $user->phone) }}" readonly>
             </div>
             <div class="field">
                 <label for="gender">Giới tính</label>
-                <select id="gender" name="gender">
+                <select id="gender" name="gender" disabled>
                     <option value="">-- Chọn --</option>
                     <option value="male" @selected(old('gender', $user->gender) === 'male')>Nam</option>
                     <option value="female" @selected(old('gender', $user->gender) === 'female')>Nữ</option>
                     <option value="other" @selected(old('gender', $user->gender) === 'other')>Khác</option>
                 </select>
-                @error('gender')<small class="error">{{ $message }}</small>@enderror
             </div>
             <div class="field">
                 <label for="role">Vai trò</label>
@@ -48,16 +44,9 @@
                 </select>
                 @error('role')<small class="error">{{ $message }}</small>@enderror
             </div>
-            <div class="field">
-                <label for="password">Mật khẩu mới</label>
-                <input id="password" name="password" type="password" placeholder="Để trống nếu không đổi">
-                @error('password')<small class="error">{{ $message }}</small>@enderror
-            </div>
-            <div class="field">
-                <label for="password_confirmation">Xác nhận mật khẩu mới</label>
-                <input id="password_confirmation" name="password_confirmation" type="password">
-            </div>
         </div>
+
+        <p class="readonly-note">Các thông tin cá nhân chỉ được xem, không thể chỉnh sửa ở đây.</p>
 
         <div class="action-row">
             <button type="submit" class="primary-btn">Cập nhật</button>
@@ -77,7 +66,9 @@
 .field label { font-weight: 700; color: #475569; font-size: 13px; }
 .field input, .field select { padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; }
 .field input:focus, .field select:focus { border-color: #f97316; outline: none; box-shadow: 0 0 0 3px rgba(249,115,22,.12); }
+.field input[readonly], .field select[disabled] { background: #f8fafc; color: #475569; cursor: default; }
 .error { color: #b91c1c; font-size: 12px; }
+.readonly-note { margin: 18px 0 0; color: #64748b; font-size: 13px; }
 .primary-btn { display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#f97316,#ea580c); color: #fff; border: none; border-radius: 10px; padding: 11px 18px; font-weight: 700; cursor: pointer; text-decoration: none; }
 .action-row { margin-top: 22px; }
 @media (max-width: 760px) {

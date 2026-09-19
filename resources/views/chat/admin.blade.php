@@ -23,6 +23,8 @@
     .admin-chat-list { display: grid; gap: 7px; }
     .admin-chat-conversation { width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
     .admin-chat-conversation:hover, .admin-chat-conversation.is-selected { border-color: #dbeafe; background: #eff6ff; }
+    .admin-chat-conversation.is-unread .admin-chat-conversation-name,
+    .admin-chat-conversation.is-unread .admin-chat-conversation-preview { color: #1e293b; font-weight: 700; }
     .admin-chat-conversation-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .admin-chat-conversation-name { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
     .admin-chat-conversation-preview { display: block; margin-top: 5px; overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }

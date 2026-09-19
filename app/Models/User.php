@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -86,5 +87,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function sentChatMessages(): HasMany
     {
         return $this->hasMany(ChatMessage::class, 'sender_id');
+    }
+
+    public function wishlistProducts(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'user_wishlist_items')->withTimestamps();
+    }
+
+    public function productViews(): HasMany
+    {
+        return $this->hasMany(UserProductView::class);
     }
 }

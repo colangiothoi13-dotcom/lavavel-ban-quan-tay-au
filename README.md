@@ -146,7 +146,7 @@ Hoặc dùng script Laravel có sẵn để chạy server, queue, log và Vite c
 composer run dev
 ```
 
-Script `composer run dev` hiện tại không khởi động Reverb. Vì vậy, để chat thời gian thực hoạt động, vẫn cần mở thêm một terminal riêng và chạy `php artisan reverb:start`. Cách chạy ba terminal ở trên là cách khuyến nghị.
+`composer run dev` tự khởi động Laravel, Reverb, queue, log và Vite; không cần mở thêm terminal Reverb riêng.
 
 Build frontend cho môi trường production:
 

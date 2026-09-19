@@ -110,6 +110,63 @@ class ChatUiTest extends TestCase
         );
     }
 
+    public function test_storefront_popup_has_product_context_slot_and_clears_it_when_closed(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $content = $this->actingAs($user)
+            ->get(route('shop.home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('data-chat-product-context', $content);
+        $this->assertStringContainsString('data-chat-product-image', $content);
+        $this->assertStringContainsString('data-chat-product-name', $content);
+        $this->assertStringContainsString('data-chat-product-price', $content);
+        $this->assertStringContainsString('data-chat-product-link', $content);
+
+        $layout = file_get_contents(resource_path('views/layouts/shop.blade.php'));
+        $this->assertIsString($layout);
+        $this->assertStringContainsString('clearProductContext', $layout);
+        $this->assertStringContainsString('closePopup = () => {', $layout);
+        $this->assertStringContainsString('showProductContext(trigger)', $layout);
+        $this->assertStringContainsString('trigger.dataset.consultProductImage', $layout);
+    }
+
+    public function test_product_detail_page_has_consult_button_and_product_context(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+        $category = \App\Models\Category::create(['name' => 'Áo khoác', 'description' => 'Test']);
+        $product = \App\Models\Product::create([
+            'category_id' => $category->id,
+            'name' => 'Áo khoác nam premium',
+            'description' => 'Áo khoác chất lượng cao',
+            'gender' => 'male',
+            'base_price' => 1200000,
+            'image' => null,
+        ]);
+        \App\Models\ProductVariant::create([
+            'product_id' => $product->id,
+            'color' => 'Đen',
+            'size' => 'L',
+            'stock' => 5,
+            'price' => 1200000,
+            'image' => null,
+        ]);
+
+        $content = $this->actingAs($user)
+            ->get(route('shop.products.show', $product))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Hỏi tư vấn', $content);
+        $this->assertStringContainsString('data-consult-product-name="Áo khoác nam premium"', $content);
+        $this->assertStringContainsString('data-consult-product-image=', $content);
+        $this->assertStringContainsString('data-consult-product-price="1.200.000 đ"', $content);
+        $this->assertStringContainsString('data-consult-product-url="'.route('shop.products.show', $product).'"', $content);
+        $this->assertStringContainsString('user-chat-toggle', $content);
+    }
+
     public function test_admin_layout_exposes_presence_heartbeat_on_every_admin_page(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -121,6 +178,14 @@ class ChatUiTest extends TestCase
             ->assertSee('setInterval(sendAdminPresence, 30000)', false)
             ->assertSee('id="chat-popup"', false)
             ->assertSee('id="chat-toggle"', false);
+    }
+
+    public function test_chat_script_initializes_every_chat_root_for_realtime_updates(): void
+    {
+        $script = file_get_contents(resource_path('js/chat.js'));
+        $this->assertIsString($script);
+        $this->assertStringContainsString("const roots = Array.from(document.querySelectorAll('[data-chat-page]'));", $script);
+        $this->assertStringContainsString('roots.forEach((root) => {', $script);
     }
 
     public function test_authenticated_admin_gets_the_admin_chat_page_configuration(): void
@@ -149,6 +214,52 @@ class ChatUiTest extends TestCase
             ->assertSee('id="send-btn"', false)
             ->assertSee('data-chat-toggle-unread', false)
             ->assertSee('data-admin-unread', false);
+    }
+
+    public function test_admin_unread_conversation_rows_have_bold_unread_styles(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $content = $this->actingAs($admin)
+            ->get(route('chat.admin.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('.admin-chat-conversation.is-unread .admin-chat-conversation-name', $content);
+        $this->assertStringContainsString('.admin-chat-conversation.is-unread .admin-chat-conversation-preview', $content);
+
+        $script = file_get_contents(resource_path('js/chat.js'));
+        $this->assertIsString($script);
+        $this->assertStringContainsString("button.classList.add('is-unread')", $script);
+    }
+
+    public function test_user_chat_popup_refreshes_messages_without_a_page_reload(): void
+    {
+        $script = file_get_contents(resource_path('js/chat.js'));
+
+        $this->assertIsString($script);
+        $this->assertStringContainsString('const USER_CHAT_REFRESH_INTERVAL = 5000;', $script);
+        $this->assertStringContainsString('function startUserMessagePolling()', $script);
+        $this->assertStringContainsString('window.setInterval(loadOverview, USER_CHAT_REFRESH_INTERVAL)', $script);
+        $this->assertStringContainsString('startUserMessagePolling();', $script);
+    }
+
+    public function test_admin_chat_popup_refreshes_messages_without_a_page_reload(): void
+    {
+        $script = file_get_contents(resource_path('js/chat.js'));
+
+        $this->assertIsString($script);
+        $this->assertStringContainsString('const ADMIN_CHAT_REFRESH_INTERVAL = 5000;', $script);
+        $this->assertStringContainsString('function startAdminMessagePolling()', $script);
+        $this->assertStringContainsString('window.setInterval(refreshAdminChat, ADMIN_CHAT_REFRESH_INTERVAL)', $script);
+        $this->assertStringContainsString('startAdminMessagePolling();', $script);
+    }
+
+    public function test_dev_workflow_starts_reverb_for_chat_realtime(): void
+    {
+        $composer = json_decode(file_get_contents(base_path('composer.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertStringContainsString('php artisan reverb:start', implode("\n", $composer['scripts']['dev']));
     }
 
     public function test_regular_user_cannot_open_the_admin_chat_page_or_api(): void
@@ -181,7 +292,7 @@ class ChatUiTest extends TestCase
         $this->assertIsString($script);
         $this->assertStringContainsString('setUnreadCount(payload.unread)', $script);
         $this->assertStringContainsString('AbortController', $script);
-        $this->assertStringContainsString('REALTIME_FALLBACK_INTERVAL', $script);
+        $this->assertStringContainsString('USER_CHAT_REFRESH_INTERVAL', $script);
         $this->assertStringContainsString('startRealtimeFallback', $script);
         $this->assertStringContainsString('connection.bind(\'disconnected\'', $script);
         $this->assertStringContainsString('insertBefore', $script);

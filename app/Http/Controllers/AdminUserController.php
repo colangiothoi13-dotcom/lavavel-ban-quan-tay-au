@@ -70,29 +70,14 @@ class AdminUserController extends Controller
     public function update(Request $request, User $user): RedirectResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'gender' => ['nullable', 'in:male,female,other'],
             'role' => ['required', Rule::in(['user', 'admin'])],
         ]);
 
-        $user->fill([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'gender' => $data['gender'] ?? null,
+        $user->update([
             'role' => $data['role'],
         ]);
 
-        if (! empty($data['password'])) {
-            $user->password = Hash::make($data['password']);
-        }
-
-        $user->save();
-
-        return redirect()->route('admin.users.index')->with('status', 'Đã cập nhật thông tin người dùng.');
+        return redirect()->route('admin.users.index')->with('status', 'Đã cập nhật vai trò người dùng.');
     }
 
     public function destroy(User $user): RedirectResponse

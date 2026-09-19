@@ -183,6 +183,14 @@
                 height: 500px;
                 background: #f3f4f6;
             }
+            .user-chat-product-context { flex: 0 0 auto; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; background: #eff6ff; }
+            .user-chat-product-context[hidden] { display: none; }
+            .user-chat-product-link { display: flex; align-items: center; gap: 10px; color: #1e293b; text-decoration: none; }
+            .user-chat-product-link:hover .user-chat-product-copy strong { text-decoration: underline; }
+            .user-chat-product-link img { width: 48px; height: 48px; flex: 0 0 48px; border: 1px solid #bfdbfe; border-radius: 7px; background: #fff; object-fit: cover; }
+            .user-chat-product-copy { display: grid; gap: 4px; min-width: 0; }
+            .user-chat-product-copy strong { overflow: hidden; color: #1e3a8a; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+            .user-chat-product-copy span { color: #2563eb; font-size: 12px; font-weight: 700; }
             .user-chat-messages {
                 flex: 1;
                 min-height: 0;
@@ -320,6 +328,15 @@
                 </header>
 
                 <div class="user-chat-layout">
+                    <article class="user-chat-product-context" data-chat-product-context hidden>
+                        <a class="user-chat-product-link" data-chat-product-link href="#">
+                            <img data-chat-product-image src="" alt="">
+                            <span class="user-chat-product-copy">
+                                <strong data-chat-product-name></strong>
+                                <span data-chat-product-price></span>
+                            </span>
+                        </a>
+                    </article>
                     <ol class="user-chat-messages" data-chat-messages aria-live="polite" aria-label="Lịch sử tin nhắn"></ol>
                     <p class="chat-empty" data-chat-empty>Chưa có tin nhắn. Bạn hãy gửi lời nhắn đầu tiên nhé.</p>
 
@@ -345,11 +362,74 @@
 
                 if (!toggleButton || !popup || !closeButton) return;
 
+                const productContext = popup.querySelector('[data-chat-product-context]');
+                const productImage = popup.querySelector('[data-chat-product-image]');
+                const productName = popup.querySelector('[data-chat-product-name]');
+                const productPrice = popup.querySelector('[data-chat-product-price]');
+                const productLink = popup.querySelector('[data-chat-product-link]');
+                const input = popup.querySelector('[data-chat-input]');
+                let consultPrefix = '';
+
                 const openPopup = () => { popup.style.display = 'block'; };
-                const closePopup = () => { popup.style.display = 'none'; };
+                const clearProductContext = () => {
+                    if (input && consultPrefix && input.value.startsWith(consultPrefix)) {
+                        input.value = input.value.slice(consultPrefix.length).trimStart();
+                    }
+                    consultPrefix = '';
+                    if (productContext) productContext.hidden = true;
+                    if (productImage) {
+                        productImage.removeAttribute('src');
+                        productImage.alt = '';
+                    }
+                    if (productName) productName.textContent = '';
+                    if (productPrice) productPrice.textContent = '';
+                    if (productLink) productLink.href = '#';
+                };
+                const closePopup = () => {
+                    clearProductContext();
+                    popup.style.display = 'none';
+                };
+
+                const showProductContext = (trigger) => {
+                    if (!input) return;
+
+                    const name = trigger.dataset.consultProductName?.trim();
+                    if (!name) return;
+                    const messagePrefix = `Mình muốn hỏi tư vấn về sản phẩm ${name}. `;
+                    const currentValue = input.value.trim();
+
+                    if (!currentValue || (consultPrefix && input.value.startsWith(consultPrefix))) {
+                        input.value = messagePrefix;
+                    }
+                    consultPrefix = messagePrefix;
+                    if (productImage) {
+                        productImage.src = trigger.dataset.consultProductImage || '';
+                        productImage.alt = name;
+                    }
+                    if (productName) productName.textContent = name;
+                    if (productPrice) productPrice.textContent = trigger.dataset.consultProductPrice || '';
+                    if (productLink) productLink.href = trigger.dataset.consultProductUrl || '#';
+                    if (productContext) productContext.hidden = false;
+                    input.focus();
+                    input.selectionStart = input.value.length;
+                    input.selectionEnd = input.value.length;
+                };
 
                 toggleButton.addEventListener('click', openPopup);
                 closeButton.addEventListener('click', closePopup);
+
+                document.addEventListener('click', (event) => {
+                    const trigger = event.target.closest('[data-consult-trigger]');
+                    if (!trigger) return;
+
+                    if (!popup) {
+                        window.location.href = trigger.dataset.consultLoginUrl || '{{ route('login') }}';
+                        return;
+                    }
+
+                    openPopup();
+                    showProductContext(trigger);
+                });
             })();
         </script>
     @endunless

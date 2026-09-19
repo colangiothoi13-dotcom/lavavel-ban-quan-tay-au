@@ -6,6 +6,7 @@
     $image = $product->image ? asset('storage/'.$product->image) : ($variant?->image ? asset('storage/'.$variant->image) : 'https://via.placeholder.com/600x600?text=No+Image');
     $selectedVariant = $selectedVariant ?? null;
     $selectedImage = $selectedVariant?->image ? asset('storage/'.$selectedVariant->image) : $image;
+    $consultPrice = $selectedVariant?->price ?? $variant?->price ?? $product->base_price;
 
     $allImages = collect([$image]);
     foreach($product->variants as $v) {
@@ -83,8 +84,24 @@
             </div>
             
             <div class="action-buttons">
+                <button
+                    type="button"
+                    class="consult-button purchase-button"
+                    data-consult-trigger
+                    data-consult-product-name="{{ $product->name }}"
+                    data-consult-product-image="{{ $selectedImage }}"
+                    data-consult-product-price="{{ number_format($consultPrice, 0, ',', '.') }} đ"
+                    data-consult-product-url="{{ route('shop.products.show', $product) }}"
+                    data-consult-login-url="{{ route('login') }}"
+                >Hỏi tư vấn</button>
                 <button type="submit" name="purchase_action" value="add_to_cart" id="add-to-cart" class="add-to-cart purchase-button" disabled>Chọn màu và size để mua</button>
                 <button type="submit" name="purchase_action" value="buy_now" id="buy-now" class="buy-now purchase-button" disabled>Mua ngay</button>
+                @auth
+                    <form method="POST" action="{{ route('shop.wishlist.toggle', $product) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="btn-back" style="background:#fff1f2; color:#be123c; border-color:#fecdd3;">{{ auth()->user()->wishlistProducts()->whereKey($product->id)->exists() ? 'Bỏ yêu thích' : 'Yêu thích' }}</button>
+                    </form>
+                @endauth
 				<a href="#" onclick="history.back(); return false;" class="btn-back">Quay lại cửa hàng</a>
 			</div>
         </form>
@@ -153,6 +170,8 @@
     .quantity-row input { width: 80px; padding: 9px; border: 1px solid #ccd1d5; border-radius: 4px; }
     
     .action-buttons { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+    .consult-button { flex: 1; padding: 12px; border: 1px solid #2563eb; border-radius: 4px; background: #eff6ff; color: #1d4ed8; font-weight: 700; cursor: pointer; transition: 0.2s; text-align: center; }
+    .consult-button:hover { background: #dbeafe; }
     .add-to-cart { flex: 1; padding: 12px; border: 0; border-radius: 4px; background: #b45309; color: #fff; font-weight: 700; cursor: pointer; transition: 0.2s; text-align: center; }
     .buy-now { flex: 1; padding: 12px; border: 1px solid #ea580c; border-radius: 4px; background: #fff7ed; color: #c2410c; font-weight: 700; cursor: pointer; }
     .purchase-button:disabled { border-color: #9ca3af; background: #9ca3af; color: #fff; cursor: not-allowed; }

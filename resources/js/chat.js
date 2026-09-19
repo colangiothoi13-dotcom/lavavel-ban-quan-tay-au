@@ -2,7 +2,8 @@ import { createEcho } from './echo';
 
 const MAX_MESSAGE_LENGTH = 2000;
 const STATUS_POLL_INTERVAL = 30000;
-const REALTIME_FALLBACK_INTERVAL = 30000;
+const USER_CHAT_REFRESH_INTERVAL = 5000;
+const ADMIN_CHAT_REFRESH_INTERVAL = 5000;
 const REALTIME_EVENT = '.chat.message.sent';
 
 function csrfToken() {
@@ -151,6 +152,7 @@ function initializeUserChat(root) {
     const maxLength = Number(root.dataset.maxLength || MAX_MESSAGE_LENGTH);
     const seenIds = new Set();
     let realtimeFallbackTimer = null;
+    let overviewRequestInFlight = false;
 
     function setUnreadCount(value) {
         const unread = Math.max(0, Number.parseInt(value, 10) || 0);
@@ -185,6 +187,9 @@ function initializeUserChat(root) {
     }
 
     async function loadOverview() {
+        if (overviewRequestInFlight) return;
+        overviewRequestInFlight = true;
+
         try {
             const payload = await requestJson(root.dataset.overviewUrl);
             (payload.data || []).forEach((message) => appendMessage(
@@ -200,12 +205,18 @@ function initializeUserChat(root) {
             clearError(errorElement);
         } catch (error) {
             showError(errorElement, `Không thể tải lịch sử tin nhắn: ${error.message}`);
+        } finally {
+            overviewRequestInFlight = false;
         }
     }
 
-    function startRealtimeFallback() {
+    function startUserMessagePolling() {
         if (realtimeFallbackTimer !== null) return;
-        realtimeFallbackTimer = window.setInterval(loadOverview, REALTIME_FALLBACK_INTERVAL);
+        realtimeFallbackTimer = window.setInterval(loadOverview, USER_CHAT_REFRESH_INTERVAL);
+    }
+
+    function startRealtimeFallback() {
+        startUserMessagePolling();
         loadOverview();
     }
 
@@ -243,6 +254,7 @@ function initializeUserChat(root) {
         showError(errorElement, `Realtime chưa kết nối: ${error?.message || 'vui lòng thử lại sau.'}`);
         startRealtimeFallback();
     });
+    startUserMessagePolling();
     input.addEventListener('input', () => setCount(input, count, maxLength));
     submitOnEnter(input, form);
     form.addEventListener('submit', sendMessage);
@@ -292,6 +304,7 @@ function initializeAdminChat(root) {
             button.type = 'button';
             button.className = 'admin-chat-conversation';
             button.dataset.conversationId = String(conversation.id);
+            if (Number(conversation.unread || 0) > 0) button.classList.add('is-unread');
             if (String(conversation.id) === selectedConversationId) button.classList.add('is-selected');
 
             const row = document.createElement('span');
@@ -418,14 +431,19 @@ function initializeAdminChat(root) {
         if (loaded && isCurrentSelection(selectedConversationId, version)) await loadConversations();
     }
 
-    function startRealtimeFallback() {
+    async function refreshAdminChat() {
+        await loadConversations();
+        await refreshSelectedConversation();
+    }
+
+    function startAdminMessagePolling() {
         if (realtimeFallbackTimer !== null) return;
-        const refresh = async () => {
-            await loadConversations();
-            await refreshSelectedConversation();
-        };
-        realtimeFallbackTimer = window.setInterval(refresh, REALTIME_FALLBACK_INTERVAL);
-        refresh();
+        realtimeFallbackTimer = window.setInterval(refreshAdminChat, ADMIN_CHAT_REFRESH_INTERVAL);
+    }
+
+    function startRealtimeFallback() {
+        startAdminMessagePolling();
+        refreshAdminChat();
     }
 
     async function sendMessage(event) {
@@ -472,16 +490,18 @@ function initializeAdminChat(root) {
         showError(errorElement, `Realtime chưa kết nối: ${error?.message || 'vui lòng thử lại sau.'}`);
         startRealtimeFallback();
     });
+    startAdminMessagePolling();
     loadConversations();
 }
 
 function initializeChat() {
-    const userRoot = document.querySelector('[data-chat-page="user"]');
-    const adminPopupRoot = document.querySelector('#chat-popup');
-    const root = userRoot || adminPopupRoot || document.querySelector('[data-chat-page]');
-    if (!root) return;
-    if (root.dataset.chatPage === 'admin') initializeAdminChat(root);
-    if (root.dataset.chatPage === 'user') initializeUserChat(root);
+    const roots = Array.from(document.querySelectorAll('[data-chat-page]'));
+    if (roots.length === 0) return;
+
+    roots.forEach((root) => {
+        if (root.dataset.chatPage === 'admin') initializeAdminChat(root);
+        if (root.dataset.chatPage === 'user') initializeUserChat(root);
+    });
 }
 
 if (document.readyState === 'loading') {

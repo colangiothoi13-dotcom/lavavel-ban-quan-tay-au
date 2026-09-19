@@ -166,6 +166,14 @@
         <section class="shop-main" id="products" style="width: 100%;">
     @endif
 
+            @auth
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+                    <a href="{{ route('shop.recommendations') }}" style="padding:10px 14px; border-radius:999px; background:#eef2ff; color:#312e81; text-decoration:none; font-weight:700;">Gợi ý cho bạn</a>
+                    <a href="{{ route('shop.wishlist.index') }}" style="padding:10px 14px; border-radius:999px; background:#fef3c7; color:#92400e; text-decoration:none; font-weight:700;">Danh sách yêu thích</a>
+                    <a href="{{ route('shop.history.index') }}" style="padding:10px 14px; border-radius:999px; background:#ecfeff; color:#0f766e; text-decoration:none; font-weight:700;">Lịch sử duyệt</a>
+                </div>
+            @endauth
+
             <h2>Khám phá sản phẩm</h2>
             <div class="products">
                 @forelse($products as $product)

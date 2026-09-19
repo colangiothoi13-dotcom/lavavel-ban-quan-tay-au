@@ -76,6 +76,10 @@ Route::prefix('user')->middleware('auth')->group(function () {
     Route::post('/don-mua/{order}/mua-lai', [OrderController::class, 'reorder'])->name('user.orders.reorder');
     Route::patch('/don-mua/{order}/huy', [OrderController::class, 'cancel'])->name('user.orders.cancel');
     Route::post('/don-mua/{order}/momo/lai', [MomoPaymentController::class, 'start'])->name('user.orders.momo.retry');
+    Route::post('/san-pham/{product}/yeu-thich', [StorefrontController::class, 'toggleWishlist'])->name('shop.wishlist.toggle');
+    Route::get('/yeu-thich', [StorefrontController::class, 'wishlist'])->name('shop.wishlist.index');
+    Route::get('/lich-su-duyet', [StorefrontController::class, 'browseHistory'])->name('shop.history.index');
+    Route::get('/goi-y-ca-nhan', [StorefrontController::class, 'recommendations'])->name('shop.recommendations');
 });
 
 Route::prefix('nhan-tin')->middleware('auth')->group(function () {

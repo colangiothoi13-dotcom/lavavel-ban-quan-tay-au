@@ -106,11 +106,115 @@ class StorefrontController
     {
         $product->load('variants');
 
+        if (request()->user()) {
+            request()->user()->productViews()->firstOrCreate(['product_id' => $product->id]);
+        }
+
         return view('shop.show', [
             'product' => $product,
             'selectedVariant' => null,
             'layout' => request()->user() ? 'layouts.app' : 'layouts.shop',
         ]);
+    }
+
+    public function toggleWishlist(Request $request, Product $product): RedirectResponse
+    {
+        $wishlist = $request->user()->wishlistProducts();
+
+        if ($wishlist->whereKey($product->id)->exists()) {
+            $wishlist->detach($product->id);
+            $message = 'Đã bỏ yêu thích sản phẩm.';
+        } else {
+            $wishlist->attach($product->id);
+            $message = 'Đã thêm vào danh sách yêu thích.';
+        }
+
+        return back()->with('status', $message);
+    }
+
+    public function wishlist(Request $request)
+    {
+        $products = $request->user()
+            ->wishlistProducts()
+            ->with('variants')
+            ->latest('user_wishlist_items.created_at')
+            ->paginate(12);
+
+        return view('shop.wishlist', compact('products'));
+    }
+
+    public function browseHistory(Request $request)
+    {
+        $products = Product::query()
+            ->join('user_product_views', 'user_product_views.product_id', '=', 'products.id')
+            ->where('user_product_views.user_id', $request->user()->id)
+            ->select('products.*')
+            ->distinct()
+            ->orderByDesc('user_product_views.created_at')
+            ->with('variants')
+            ->paginate(12);
+
+        return view('shop.history', compact('products'));
+    }
+
+    public function recommendations(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $visitedIds = $user->productViews()->pluck('product_id')->all();
+        $wishlistIds = $user->wishlistProducts()->pluck('products.id')->all();
+        $excludedIds = array_values(array_unique(array_merge($visitedIds, $wishlistIds)));
+
+        $historyNames = $user->orders()
+            ->with('items')
+            ->get()
+            ->flatMap(fn (Order $order) => $order->items->pluck('product_name'))
+            ->merge($user->wishlistProducts()->pluck('name'))
+            ->merge($user->productViews()->with('product')->get()->pluck('product.name'))
+            ->filter()
+            ->map(fn ($name) => trim((string) $name))
+            ->filter(fn ($name) => $name !== '')
+            ->values();
+
+        $keywords = $historyNames
+            ->flatMap(fn ($name) => preg_split('/\s+/', $name) ?: [])
+            ->map(fn ($keyword) => mb_strtolower(trim((string) $keyword), 'UTF-8'))
+            ->filter(fn ($keyword) => $keyword !== '' && mb_strlen($keyword, 'UTF-8') > 2)
+            ->unique()
+            ->values();
+
+        $nameMatchQuery = Product::query()->with('variants');
+        if ($excludedIds !== []) {
+            $nameMatchQuery->whereNotIn('id', $excludedIds);
+        }
+
+        if ($keywords->isNotEmpty()) {
+            $nameMatchQuery->where(function ($query) use ($keywords) {
+                foreach ($keywords as $keyword) {
+                    $query->orWhereRaw('LOWER(name) LIKE ?', ['%'.$keyword.'%']);
+                }
+            });
+        }
+
+        $products = $nameMatchQuery
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get();
+
+        if ($products->isEmpty()) {
+            $products = Product::query()
+                ->with('variants')
+                ->when($excludedIds !== [], fn ($query) => $query->whereNotIn('id', $excludedIds))
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get();
+        }
+
+        return view('shop.recommendations', compact('products'));
     }
 
     public function showVariant(Product $product, ProductVariant $variant)

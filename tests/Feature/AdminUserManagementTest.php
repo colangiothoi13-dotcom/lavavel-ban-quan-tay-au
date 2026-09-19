@@ -10,7 +10,7 @@ class AdminUserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_create_and_update_users_without_delete_action(): void
+    public function test_admin_can_only_update_user_role_and_not_other_profile_fields(): void
     {
         $admin = User::factory()->create([
             'name' => 'Admin',
@@ -44,14 +44,21 @@ class AdminUserManagementTest extends TestCase
         $this->get('/admin/users/' . $user->id . '/edit')->assertOk();
 
         $this->put('/admin/users/' . $user->id, [
+            'role' => 'admin',
             'name' => 'Nguyễn Văn B',
             'email' => 'b@example.com',
-            'role' => 'admin',
             'phone' => '0909090909',
             'gender' => 'female',
         ])->assertRedirect('/admin/users');
 
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Nguyễn Văn B', 'email' => 'b@example.com']);
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'name' => 'Nguyễn Văn A',
+            'email' => 'a@example.com',
+            'phone' => '0987654321',
+            'gender' => 'male',
+            'role' => 'admin',
+        ]);
 
         $response = $this->delete('/admin/users/' . $user->id);
         $response->assertStatus(405);
