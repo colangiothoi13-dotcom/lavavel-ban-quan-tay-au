@@ -72,7 +72,7 @@
             <p id="choice-message" class="choice-message">Hãy chọn màu sắc và size.</p>
         @endif
 
-        <form action="{{ route('cart.add', $product) }}" method="POST" class="purchase-form">
+        <form id="purchase-form" action="{{ route('cart.add', $product) }}" method="POST" class="purchase-form">
             @csrf
             @if(request('return_to'))
                 <input type="hidden" name="return_to" value="{{ request('return_to') }}">
@@ -83,28 +83,29 @@
                 <input id="quantity" type="number" name="quantity" min="1" value="1">
             </div>
             
-            <div class="action-buttons">
-                <button
-                    type="button"
-                    class="consult-button purchase-button"
-                    data-consult-trigger
-                    data-consult-product-name="{{ $product->name }}"
-                    data-consult-product-image="{{ $selectedImage }}"
-                    data-consult-product-price="{{ number_format($consultPrice, 0, ',', '.') }} đ"
-                    data-consult-product-url="{{ route('shop.products.show', $product) }}"
-                    data-consult-login-url="{{ route('login') }}"
-                >Hỏi tư vấn</button>
-                <button type="submit" name="purchase_action" value="add_to_cart" id="add-to-cart" class="add-to-cart purchase-button" disabled>Chọn màu và size để mua</button>
-                <button type="submit" name="purchase_action" value="buy_now" id="buy-now" class="buy-now purchase-button" disabled>Mua ngay</button>
-                @auth
-                    <form method="POST" action="{{ route('shop.wishlist.toggle', $product) }}" style="display:inline;">
-                        @csrf
-                        <button type="submit" class="btn-back" style="background:#fff1f2; color:#be123c; border-color:#fecdd3;">{{ auth()->user()->wishlistProducts()->whereKey($product->id)->exists() ? 'Bỏ yêu thích' : 'Yêu thích' }}</button>
-                    </form>
-                @endauth
-				<a href="#" onclick="history.back(); return false;" class="btn-back">Quay lại cửa hàng</a>
-			</div>
         </form>
+
+        <div class="action-buttons">
+            <button
+                type="button"
+                class="consult-button purchase-button"
+                data-consult-trigger
+                data-consult-product-name="{{ $product->name }}"
+                data-consult-product-image="{{ $selectedImage }}"
+                data-consult-product-price="{{ number_format($consultPrice, 0, ',', '.') }} đ"
+                data-consult-product-url="{{ route('shop.products.show', $product) }}"
+                data-consult-login-url="{{ route('login') }}"
+            >Hỏi tư vấn</button>
+            <button type="submit" form="purchase-form" name="purchase_action" value="add_to_cart" id="add-to-cart" class="add-to-cart purchase-button" disabled>Chọn màu và size để mua</button>
+            <button type="submit" form="purchase-form" name="purchase_action" value="buy_now" id="buy-now" class="buy-now purchase-button" disabled>Mua ngay</button>
+            @auth
+                <form method="POST" action="{{ route('shop.wishlist.toggle', $product) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn-back" style="background:#fff1f2; color:#be123c; border-color:#fecdd3;">{{ auth()->user()->wishlistProducts()->whereKey($product->id)->exists() ? 'Bỏ yêu thích' : 'Yêu thích' }}</button>
+                </form>
+            @endauth
+            <a href="#" onclick="history.back(); return false;" class="btn-back">Quay lại cửa hàng</a>
+        </div>
     </div>
 </div>
 </div>

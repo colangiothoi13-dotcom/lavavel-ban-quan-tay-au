@@ -93,6 +93,7 @@
             margin: 0;
             overflow: hidden;
         }
+        .user-flash-status { margin: 16px; padding: 12px 16px; border-radius: 5px; background: #e3f6e9; color: #166534; }
 
         @media (max-width: 900px) {
             .user-shell { position: relative; }
@@ -872,6 +873,9 @@
                     <li><a href="{{ url('gio-hang') }}" class="{{ Request::is('gio-hang*') ? 'active' : '' }}"><span class="menu-icon">📦</span><span class="nav-label">Giỏ hàng</span></a></li>
                     <li><a href="{{ route('user.addresses.index') }}" class="{{ Request::is('user/addresses*') ? 'active' : '' }}"><span class="menu-icon">📍</span><span class="nav-label">Địa chỉ</span></a></li>
                     <li><a href="{{ route('user.orders.index', ['status' => 'completed']) }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}"><span class="menu-icon">🛍️</span><span class="nav-label">Đơn mua</span></a></li>
+                    <li><a href="{{ route('shop.wishlist.index') }}" class="{{ Request::is('yeu-thich*') ? 'active' : '' }}"><span class="menu-icon">❤️</span><span class="nav-label">Yêu thích</span></a></li>
+                    <li><a href="{{ route('shop.history.index') }}" class="{{ Request::is('lich-su-duyet*') ? 'active' : '' }}"><span class="menu-icon">🕘</span><span class="nav-label">Lịch sử duyệt</span></a></li>
+                    <li><a href="{{ route('shop.recommendations') }}" class="{{ Request::is('goi-y-ca-nhan*') ? 'active' : '' }}"><span class="menu-icon">✨</span><span class="nav-label">Gợi ý cho bạn</span></a></li>
                     <li class="sidebar-account">
                         <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}"><span class="menu-icon">👤</span><span class="nav-label">Hồ sơ</span></a>
                     </li>
@@ -923,6 +927,9 @@
 
                 <div class="user-content-area">
                     <div class="user-card">
+                        @if(session('status'))
+                            <div class="user-flash-status" role="status">{{ session('status') }}</div>
+                        @endif
                         @yield('content')
                     </div>
                 </div>
