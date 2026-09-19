@@ -116,7 +116,7 @@ class ProductRecommendationService
             $score = 0;
             $sourceProduct = $source['product'];
 
-            if ($candidate->category_id === $sourceProduct->category_id) {
+            if ($candidate->category_id !== null && $candidate->category_id === $sourceProduct->category_id) {
                 $score += 2 * $source['weight'];
             }
 
