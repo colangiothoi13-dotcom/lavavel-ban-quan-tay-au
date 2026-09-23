@@ -164,7 +164,7 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect()->route('home');
     }
 
     private function syncCartToUser(Request $request, User $user): void

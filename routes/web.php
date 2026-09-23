@@ -22,12 +22,12 @@ Route::get('/cua-hang', [StorefrontController::class, 'home'])->name('shop.home'
 Route::get('/goi-y-san-pham', [StorefrontController::class, 'productSuggestions'])->name('shop.products.suggestions');
 Route::get('/cua-hang/san-pham/{product}', [StorefrontController::class, 'show'])->name('shop.products.show');
 Route::get('/cua-hang/san-pham/{product}/bien-the/{variant}', [StorefrontController::class, 'showVariant'])->name('shop.products.variant');
-Route::get('/gio-hang', [StorefrontController::class, 'cart'])->name('cart.index');
-Route::post('/gio-hang/them/{product}', [StorefrontController::class, 'addToCart'])->name('cart.add');
-Route::patch('/gio-hang/{variant}', [StorefrontController::class, 'updateCart'])->name('cart.update');
-Route::post('/gio-hang/{variant}/doi-bien-the', [StorefrontController::class, 'replaceVariant'])->name('cart.replace-variant');
-Route::delete('/gio-hang/{variant}', [StorefrontController::class, 'removeFromCart'])->name('cart.remove');
 Route::middleware('auth')->group(function () {
+    Route::get('/gio-hang', [StorefrontController::class, 'cart'])->name('cart.index');
+    Route::post('/gio-hang/them/{product}', [StorefrontController::class, 'addToCart'])->name('cart.add');
+    Route::patch('/gio-hang/{variant}', [StorefrontController::class, 'updateCart'])->name('cart.update');
+    Route::post('/gio-hang/{variant}/doi-bien-the', [StorefrontController::class, 'replaceVariant'])->name('cart.replace-variant');
+    Route::delete('/gio-hang/{variant}', [StorefrontController::class, 'removeFromCart'])->name('cart.remove');
     Route::get('/thanh-toan', [StorefrontController::class, 'checkout'])->name('checkout');
     Route::post('/thanh-toan', [StorefrontController::class, 'placeOrder'])->name('checkout.place');
 });
@@ -82,8 +82,11 @@ Route::prefix('user')->middleware('auth')->group(function () {
     Route::get('/goi-y-ca-nhan', [StorefrontController::class, 'recommendations'])->name('shop.recommendations');
 });
 
-Route::prefix('nhan-tin')->middleware('auth')->group(function () {
+Route::prefix('nhan-tin')->group(function () {
     Route::get('/', [ChatController::class, 'userIndex'])->name('chat.user.index');
+    Route::post('/start', [ChatController::class, 'startGuestChat'])
+        ->middleware('throttle:5,1')
+        ->name('chat.user.start');
     Route::get('/overview', [ChatController::class, 'userOverview'])->name('chat.user.overview');
     Route::get('/messages', [ChatController::class, 'userMessages'])->name('chat.user.messages');
     Route::post('/messages', [ChatController::class, 'userSend'])

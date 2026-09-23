@@ -22,12 +22,17 @@ class ChatUiTest extends TestCase
             ->assertSee('id="user-chat-popup"', false);
     }
 
-    public function test_guest_does_not_see_the_user_chat_popup_on_the_storefront(): void
+    public function test_guest_sees_the_user_chat_popup_on_the_storefront(): void
     {
         $this->get(route('shop.home'))
             ->assertOk()
-            ->assertDontSee('id="user-chat-toggle"', false)
-            ->assertDontSee('id="user-chat-popup"', false);
+            ->assertSee('id="user-chat-toggle"', false)
+            ->assertSee('id="user-chat-popup"', false)
+            ->assertSee('data-chat-user-id="guest"', false)
+            ->assertSee('data-channel=""', false)
+            ->assertSee('data-chat-prechat-form', false)
+            ->assertSee('data-chat-lead-phone', false)
+            ->assertSee(route('chat.user.start'), false);
     }
 
     public function test_authenticated_user_popup_loads_the_chat_bundle_on_the_storefront(): void
@@ -46,10 +51,14 @@ class ChatUiTest extends TestCase
         );
     }
 
-    public function test_guest_is_sent_to_login_when_opening_the_chat_page(): void
+    public function test_guest_can_open_the_chat_page(): void
     {
         $this->get(route('chat.user.index'))
-            ->assertRedirect(route('login'));
+            ->assertOk()
+            ->assertSee('data-chat-user-id="guest"', false)
+            ->assertSee('data-channel=""', false)
+            ->assertSee('data-chat-prechat-form', false)
+            ->assertSee('data-chat-lead-phone', false);
     }
 
     public function test_authenticated_user_gets_the_user_chat_page_configuration(): void

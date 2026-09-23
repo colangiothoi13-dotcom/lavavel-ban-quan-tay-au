@@ -9,6 +9,7 @@ use App\Services\Chat\AdminPresenceService;
 use App\Services\Chat\ChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -23,43 +24,97 @@ class ChatController extends Controller
 
     public function userIndex(Request $request): View
     {
+        $user = $this->chatUserFromRequest($request);
+
         return view('chat.user', [
-            'user' => $this->userFromRequest($request),
+            'user' => $user,
+            'isGuestChatUser' => $user instanceof User && $this->isGuestUser($user),
+        ]);
+    }
+
+    public function startGuestChat(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:30', 'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/'],
+        ]);
+        $data['name'] = trim($data['name']);
+        $data['phone'] = trim($data['phone']);
+
+        if ($data['name'] === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Vui lòng nhập họ và tên.',
+            ]);
+        }
+
+        $user = $this->chatUserFromRequest($request);
+        if (! $user instanceof User) {
+            $user = $this->createGuestChatUser($request, $data['name']);
+        } elseif ($this->isGuestUser($user)) {
+            $user->update(['name' => $data['name']]);
+        }
+
+        $conversation = $this->chatService->conversationForUser($user);
+        $conversation->update(['guest_phone' => $data['phone']]);
+
+        return response()->json([
+            'data' => [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'phone' => $conversation->guest_phone,
+            ],
         ]);
     }
 
     public function userOverview(Request $request): JsonResponse
     {
-        $user = $this->userFromRequest($request);
+        $user = $this->chatUserFromRequest($request);
+        if ($user === null) {
+            return response()->json(['data' => [], 'unread' => 0]);
+        }
+
         $conversation = $this->chatService->conversationForUser($user);
 
         return response()->json([
-            'data' => $this->messagePayloads($conversation),
+            'data' => $this->messagePayloads($conversation, $user),
             'unread' => $this->chatService->unreadForUser($user),
         ]);
     }
 
     public function userMessages(Request $request): JsonResponse
     {
-        $user = $this->userFromRequest($request);
+        $user = $this->chatUserFromRequest($request);
+        if ($user === null) {
+            return response()->json(['data' => []]);
+        }
+
         $conversation = $this->chatService->conversationForUser($user);
 
         return response()->json([
-            'data' => $this->messagePayloads($conversation),
+            'data' => $this->messagePayloads($conversation, $user),
         ]);
     }
 
     public function userSend(Request $request): JsonResponse
     {
-        $user = $this->userFromRequest($request);
+        $user = $this->chatUserFromRequest($request);
+        if (! $user instanceof User) {
+            throw ValidationException::withMessages([
+                'chat' => 'Vui lòng nhập tên và số điện thoại trước khi bắt đầu chat.',
+            ]);
+        }
         $message = $this->chatService->sendUserMessage($user, $this->validatedBody($request));
 
-        return response()->json(['data' => $this->messagePayload($message)], 201);
+        return response()->json(['data' => $this->messagePayload($message, $user)], 201);
     }
 
     public function userRead(Request $request): JsonResponse
     {
-        $user = $this->userFromRequest($request);
+        $user = $this->chatUserFromRequest($request);
+
+        if ($user === null) {
+            return response()->json(['data' => ['marked' => 0]]);
+        }
 
         return response()->json([
             'data' => ['marked' => $this->chatService->markUserMessagesRead($user)],
@@ -96,6 +151,7 @@ class ChatController extends Controller
                 'id' => $conversation->id,
                 'user_id' => $conversation->user_id,
                 'user_name' => $conversation->user->name,
+                'user_phone' => $conversation->guest_phone,
                 'last_message' => $conversation->latestMessage?->body,
                 'last_message_at' => $conversation->last_message_at?->toIso8601String(),
                 'unread' => $conversation->unread_count,
@@ -142,6 +198,45 @@ class ChatController extends Controller
         return $user;
     }
 
+    private function chatUserFromRequest(Request $request): ?User
+    {
+        $user = $request->user();
+        if ($user instanceof User) {
+            return $user;
+        }
+
+        $guestId = $request->session()->get('guest_chat_user_id');
+        if ($guestId !== null) {
+            $guest = User::query()
+                ->whereKey($guestId)
+                ->where('role', 'user')
+                ->first();
+
+            if ($guest instanceof User) {
+                return $guest;
+            }
+
+            $request->session()->forget('guest_chat_user_id');
+        }
+
+        return null;
+    }
+
+    private function createGuestChatUser(Request $request, string $name): User
+    {
+        $token = (string) Str::uuid();
+        $guest = User::query()->create([
+            'name' => $name,
+            'email' => 'guest-'.$token.'@guest.invalid',
+            'password' => Str::random(64),
+            'role' => 'user',
+        ]);
+
+        $request->session()->put('guest_chat_user_id', $guest->id);
+
+        return $guest;
+    }
+
     private function validatedBody(Request $request): string
     {
         $body = trim($request->validate([
@@ -157,27 +252,37 @@ class ChatController extends Controller
         return $body;
     }
 
-    private function messagePayloads(ChatConversation $conversation): array
+    private function messagePayloads(ChatConversation $conversation, ?User $currentUser = null): array
     {
         return $conversation->messages()
             ->with('conversation', 'sender')
             ->oldest()
             ->orderBy('id')
             ->get()
-            ->map(fn (ChatMessage $message): array => $this->messagePayload($message))
+            ->map(fn (ChatMessage $message): array => $this->messagePayload($message, $currentUser))
             ->all();
     }
 
-    private function messagePayload(ChatMessage $message): array
+    private function messagePayload(ChatMessage $message, ?User $currentUser = null): array
     {
+        $senderId = $message->sender_id;
+        if ($currentUser && $this->isGuestUser($currentUser) && $message->sender_id === $currentUser->id) {
+            $senderId = 'guest';
+        }
+
         return [
             'id' => $message->id,
             'conversation_id' => $message->conversation_id,
-            'sender_id' => $message->sender_id,
+            'sender_id' => $senderId,
             'sender_name' => $message->sender->name,
             'body' => $message->body,
             'created_at' => $message->created_at->toIso8601String(),
             'is_admin' => $message->sender->isAdmin(),
         ];
+    }
+
+    private function isGuestUser(User $user): bool
+    {
+        return str_ends_with($user->email, '@guest.invalid');
     }
 }

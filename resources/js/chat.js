@@ -148,11 +148,21 @@ function initializeUserChat(root) {
     const count = root.querySelector('[data-chat-count]');
     const unreadElement = root.querySelector('[data-chat-unread-count]');
     const currentUserId = root.dataset.chatUserId;
+    const isGuest = currentUserId === 'guest';
+    const prechat = root.querySelector('[data-chat-prechat]');
+    const prechatForm = root.querySelector('[data-chat-prechat-form]');
+    const prechatName = root.querySelector('[data-chat-lead-name]');
+    const prechatPhone = root.querySelector('[data-chat-lead-phone]');
+    const prechatStart = root.querySelector('[data-chat-start]');
+    const prechatError = root.querySelector('[data-chat-prechat-error]');
+    const chatWindow = root.querySelector('[data-chat-window]');
     const classPrefix = root.dataset.chatClassPrefix || 'chat';
     const maxLength = Number(root.dataset.maxLength || MAX_MESSAGE_LENGTH);
     const seenIds = new Set();
     let realtimeFallbackTimer = null;
     let overviewRequestInFlight = false;
+    let guestChatReady = !isGuest || root.dataset.chatGuestReady === 'true';
+    let statusInterval = null;
 
     function setUnreadCount(value) {
         const unread = Math.max(0, Number.parseInt(value, 10) || 0);
@@ -187,6 +197,7 @@ function initializeUserChat(root) {
     }
 
     async function loadOverview() {
+        if (isGuest && !guestChatReady) return;
         if (overviewRequestInFlight) return;
         overviewRequestInFlight = true;
 
@@ -222,6 +233,7 @@ function initializeUserChat(root) {
 
     async function sendMessage(event) {
         event.preventDefault();
+        if (isGuest && !guestChatReady) return;
         const body = input.value.trim();
         if (!body || body.length > maxLength || submit.disabled) return;
 
@@ -242,25 +254,65 @@ function initializeUserChat(root) {
         }
     }
 
-    attachRealtime(root.dataset.channel, root.dataset.event, (message) => {
-        const inserted = appendMessage(messagesElement, emptyElement, seenIds, message, currentUserId, classPrefix);
-        if (inserted && String(message.sender_id) !== String(currentUserId)) {
-            setUnreadCount(Number(unreadElement?.textContent || 0) + 1);
-            markRead().then((marked) => {
-                if (marked) setUnreadCount(0);
+    async function startGuestChat(event) {
+        event.preventDefault();
+        if (!prechatName?.value.trim() || !prechatPhone?.value.trim() || prechatStart.disabled) return;
+
+        prechatStart.disabled = true;
+        try {
+            await requestJson(root.dataset.startUrl, {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: prechatName.value.trim(),
+                    phone: prechatPhone.value.trim(),
+                }),
             });
+
+            guestChatReady = true;
+            root.dataset.chatGuestReady = 'true';
+            clearError(prechatError);
+            activateChatSession();
+        } catch (error) {
+            showError(prechatError, error.message || 'Vui lòng kiểm tra lại thông tin.');
+        } finally {
+            prechatStart.disabled = false;
         }
-    }, (error) => {
+    }
+
+    if (root.dataset.channel) {
+        attachRealtime(root.dataset.channel, root.dataset.event, (message) => {
+            const inserted = appendMessage(messagesElement, emptyElement, seenIds, message, currentUserId, classPrefix);
+            if (inserted && String(message.sender_id) !== String(currentUserId)) {
+                setUnreadCount(Number(unreadElement?.textContent || 0) + 1);
+                markRead().then((marked) => {
+                    if (marked) setUnreadCount(0);
+                });
+            }
+        }, (error) => {
         showError(errorElement, `Realtime chưa kết nối: ${error?.message || 'vui lòng thử lại sau.'}`);
         startRealtimeFallback();
-    });
-    startUserMessagePolling();
+        });
+    }
+    function activateChatSession() {
+        if (isGuest) {
+            if (prechat) prechat.hidden = true;
+            if (chatWindow) chatWindow.hidden = false;
+        }
+
+        startUserMessagePolling();
+        loadOverview();
+        refreshStatus();
+        if (statusInterval === null) {
+            statusInterval = window.setInterval(refreshStatus, STATUS_POLL_INTERVAL);
+        }
+    }
+
     input.addEventListener('input', () => setCount(input, count, maxLength));
     submitOnEnter(input, form);
     form.addEventListener('submit', sendMessage);
-    loadOverview();
-    refreshStatus();
-    window.setInterval(refreshStatus, STATUS_POLL_INTERVAL);
+    if (prechatForm) prechatForm.addEventListener('submit', startGuestChat);
+
+    if (!isGuest || guestChatReady) activateChatSession();
 }
 
 function initializeAdminChat(root) {
@@ -318,13 +370,18 @@ function initializeAdminChat(root) {
             unread.hidden = Number(conversation.unread || 0) < 1;
             row.append(name, unread);
 
+            const contact = document.createElement('span');
+            contact.className = 'admin-chat-conversation-contact';
+            contact.textContent = String(conversation.user_phone || '');
+            contact.hidden = !conversation.user_phone;
+
             const time = document.createElement('time');
             time.className = 'admin-chat-conversation-time';
             time.textContent = formatTimestamp(conversation.last_message_at) || 'Chưa có tin nhắn';
             const preview = document.createElement('span');
             preview.className = 'admin-chat-conversation-preview';
             preview.textContent = String(conversation.last_message || '');
-            button.append(row, preview, time);
+            button.append(row, contact, preview, time);
             listElement.appendChild(button);
         });
         const total = conversations.reduce((sum, conversation) => sum + Number(conversation.unread || 0), 0);

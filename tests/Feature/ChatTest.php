@@ -85,9 +85,56 @@ class ChatTest extends TestCase
             ->assertJsonPath('data.0.last_message', '<strong>Untrusted preview</strong>');
     }
 
-    public function test_guest_is_redirected_when_opening_chat(): void
+    public function test_guest_can_open_chat_and_send_messages(): void
     {
-        $this->get(route('chat.user.index'))->assertRedirect(route('login'));
+        $this->get(route('chat.user.index'))
+            ->assertOk()
+            ->assertSee('data-chat-user-id="guest"', false)
+            ->assertSee('data-channel=""', false)
+            ->assertSee('data-chat-prechat-form', false)
+            ->assertSee('data-chat-lead-name', false)
+            ->assertSee('data-chat-lead-phone', false);
+
+        $this->postJson(route('chat.user.messages.store'), [
+            'body' => 'Guest must provide lead details first.',
+        ])->assertUnprocessable()->assertJsonValidationErrors('chat');
+
+        $this->postJson(route('chat.user.start'), [
+            'name' => 'Khách thử nghiệm',
+            'phone' => '0901234567',
+        ])->assertOk()->assertJsonPath('data.phone', '0901234567');
+
+        $this->get(route('chat.user.index'))
+            ->assertSee('data-chat-user-id="guest"', false)
+            ->assertSee('data-channel=""', false)
+            ->assertDontSee('data-chat-prechat-form', false);
+
+        $response = $this->postJson(route('chat.user.messages.store'), [
+            'body' => 'Khách muốn được tư vấn.',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('data.sender_id', 'guest');
+
+        $guest = User::query()->where('email', 'like', 'guest-%@guest.invalid')->firstOrFail();
+        $conversation = $guest->chatConversation()->firstOrFail();
+
+        $this->assertSame('0901234567', $conversation->guest_phone);
+
+        $this->assertDatabaseHas('chat_messages', [
+            'conversation_id' => $conversation->id,
+            'sender_id' => $guest->id,
+            'body' => 'Khách muốn được tư vấn.',
+        ]);
+
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->postJson(route('chat.admin.messages.store', $conversation), [
+                'body' => 'Shop sẵn sàng hỗ trợ bạn.',
+            ])
+            ->assertCreated();
+
+        $this->actingAs($guest)->getJson(route('chat.user.messages'))
+            ->assertOk()
+            ->assertJsonPath('data.1.body', 'Shop sẵn sàng hỗ trợ bạn.');
     }
 
     public function test_message_validation_rejects_empty_and_overlong_body(): void

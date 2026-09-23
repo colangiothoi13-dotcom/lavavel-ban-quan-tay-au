@@ -94,8 +94,7 @@
     @yield('content')
 </main>
 
-@auth
-    @unless(request()->routeIs('chat.user.index'))
+@unless(request()->routeIs('chat.user.index'))
         <style>
             #user-chat-toggle {
                 position: fixed;
@@ -307,17 +306,24 @@
             id="user-chat-popup"
             class="user-chat-popup"
             data-chat-page="user"
-            data-chat-user-id="{{ auth()->id() }}"
+            data-chat-user-id="{{ auth()->id() ?? 'guest' }}"
+            data-chat-guest-ready="{{ auth()->guest() && session()->has('guest_chat_user_id') ? 'true' : 'false' }}"
+            data-start-url="{{ route('chat.user.start') }}"
             data-overview-url="{{ route('chat.user.overview') }}"
             data-messages-url="{{ route('chat.user.messages') }}"
             data-send-url="{{ route('chat.user.messages.store') }}"
             data-read-url="{{ route('chat.user.read') }}"
             data-status-url="{{ route('chat.user.admin-status') }}"
-            data-channel="chat.user.{{ auth()->id() }}"
+            data-channel="{{ auth()->check() ? 'chat.user.'.auth()->id() : '' }}"
             data-event="chat.message.sent"
             data-max-length="2000"
             style="display: none;"
         >
+            @if(auth()->guest() && !session()->has('guest_chat_user_id'))
+                @include('chat.pre-chat', ['chatFormId' => 'shop'])
+            @endif
+
+            <div data-chat-window @if(auth()->guest() && !session()->has('guest_chat_user_id')) hidden @endif>
             <div class="user-chat-window">
                 <header class="user-chat-header">
                     <div>
@@ -349,6 +355,7 @@
                         </div>
                     </form>
                 </div>
+            </div>
             </div>
 
             <div class="user-chat-alert" data-chat-error role="alert" hidden></div>
@@ -433,7 +440,6 @@
             })();
         </script>
     @endunless
-@endauth
 
 @vite(['resources/js/app.js'])
 

@@ -244,16 +244,23 @@
     id="chat-user-page"
     class="chat-page"
     data-chat-page="user"
-    data-chat-user-id="{{ $user->id }}"
+    data-chat-user-id="{{ $isGuestChatUser ? 'guest' : ($user?->id ?? 'guest') }}"
+    data-chat-guest-ready="{{ $isGuestChatUser ? 'true' : 'false' }}"
+    data-start-url="{{ route('chat.user.start') }}"
     data-overview-url="{{ route('chat.user.overview') }}"
     data-messages-url="{{ route('chat.user.messages') }}"
     data-send-url="{{ route('chat.user.messages.store') }}"
     data-read-url="{{ route('chat.user.read') }}"
     data-status-url="{{ route('chat.user.admin-status') }}"
-    data-channel="chat.user.{{ $user->id }}"
+    data-channel="{{ $user && ! $isGuestChatUser ? 'chat.user.'.$user->id : '' }}"
     data-event="chat.message.sent"
     data-max-length="2000"
 >
+    @if($user === null)
+        @include('chat.pre-chat', ['chatFormId' => 'page'])
+    @endif
+
+    <div data-chat-window @if($user === null) hidden @endif>
     <header class="chat-heading">
         <div>
             <h1>Nhắn tin với admin</h1>
@@ -278,6 +285,7 @@
                 <span data-chat-count>0/2000</span>
             </div>
         </form>
+    </div>
     </div>
 </section>
 

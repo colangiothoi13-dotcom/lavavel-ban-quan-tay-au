@@ -324,6 +324,12 @@
                     text-overflow: ellipsis;
                     white-space: nowrap;
                 }
+                .admin-chat-conversation-contact {
+                    display: block;
+                    margin-top: 3px;
+                    color: #2563eb;
+                    font-size: 12px;
+                }
                 .admin-chat-conversation-preview {
                     display: block;
                     margin-top: 5px;
@@ -603,7 +609,6 @@
         @endunless
 
     @else
-        @auth
         @unless(request()->routeIs('chat.user.index'))
             @vite(['resources/js/app.js'])
             <style>
@@ -734,18 +739,25 @@
                 class="user-chat-popup"
                 data-chat-page="user"
                 data-chat-class-prefix="user-chat"
-                data-chat-user-id="{{ auth()->id() }}"
+                data-chat-user-id="{{ auth()->id() ?? 'guest' }}"
+                data-chat-guest-ready="{{ auth()->guest() && session()->has('guest_chat_user_id') ? 'true' : 'false' }}"
+                data-start-url="{{ route('chat.user.start') }}"
                 data-overview-url="{{ route('chat.user.overview') }}"
                 data-messages-url="{{ route('chat.user.messages') }}"
                 data-send-url="{{ route('chat.user.messages.store') }}"
                 data-read-url="{{ route('chat.user.read') }}"
                 data-status-url="{{ route('chat.user.admin-status') }}"
-                data-channel="chat.user.{{ auth()->id() }}"
+                data-channel="{{ auth()->check() ? 'chat.user.'.auth()->id() : '' }}"
                 data-event="chat.message.sent"
                 data-max-length="2000"
                 style="display: none;"
-            >
-                <div class="user-chat-window">
+        >
+            @if(auth()->guest() && !session()->has('guest_chat_user_id'))
+                @include('chat.pre-chat', ['chatFormId' => 'storefront'])
+            @endif
+
+            <div data-chat-window @if(auth()->guest() && !session()->has('guest_chat_user_id')) hidden @endif>
+            <div class="user-chat-window">
                     <header class="user-chat-header">
                         <div>
                             <h2>Nhắn tin với admin</h2>
@@ -775,10 +787,11 @@
                                 <span data-chat-count>0/2000</span>
                             </div>
                         </form>
-                    </div>
                 </div>
+            </div>
+            </div>
 
-                <div class="user-chat-alert" data-chat-error role="alert" hidden></div>
+            <div class="user-chat-alert" data-chat-error role="alert" hidden></div>
             </section>
 
             <script>
@@ -860,7 +873,6 @@
                 })();
             </script>
         @endunless
-        @endauth
 
         {{-- ================= GIAO DIỆN USER ================= --}}
         <div class="user-shell" id="user-shell">
@@ -918,10 +930,14 @@
                             </a>
                         @endif
 
-                        <form method="POST" action="{{ route('buyer.logout') }}" style="display: inline; margin: 0;">
-                            @csrf
-                            <button type="submit" class="btn-user-logout">Đăng xuất</button>
-                        </form>
+                        @if(auth()->check())
+                            <form method="POST" action="{{ route('buyer.logout') }}" style="display: inline; margin: 0;">
+                                @csrf
+                                <button type="submit" class="btn-user-logout">Đăng xuất</button>
+                            </form>
+                        @else
+                            <a href="{{ route('login') }}" class="btn-user-logout" style="text-decoration: none;">Đăng nhập</a>
+                        @endif
                     </div>
                 </div>
 

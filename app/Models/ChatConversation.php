@@ -11,6 +11,7 @@ class ChatConversation extends Model
 {
     protected $fillable = [
         'user_id',
+        'guest_phone',
         'last_message_at',
     ];
 
