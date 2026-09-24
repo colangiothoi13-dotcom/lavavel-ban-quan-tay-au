@@ -53,6 +53,25 @@ class Order extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::created(function (Order $order): void {
+            $paymentStatus = $order->payment_status ?? 'unpaid';
+            $transactionStatus = match ($paymentStatus) {
+                'paid', 'paid_refund_pending' => PaymentTransaction::STATUS_PAID,
+                'refunded' => PaymentTransaction::STATUS_REFUNDED,
+                default => PaymentTransaction::STATUS_PENDING,
+            };
+
+            $order->paymentTransactions()->create([
+                'gateway' => $order->paymentGateway(),
+                'amount' => $order->total,
+                'status' => $transactionStatus,
+                'paid_at' => $transactionStatus === PaymentTransaction::STATUS_PAID ? now() : null,
+            ]);
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -66,6 +85,23 @@ class Order extends Model
     public function momoPaymentAttempts(): HasMany
     {
         return $this->hasMany(MomoPaymentAttempt::class);
+    }
+
+    public function paymentTransactions(): HasMany
+    {
+        return $this->hasMany(PaymentTransaction::class);
+    }
+
+    public function paymentGateway(): string
+    {
+        return $this->isCashPayment() ? 'cod' : match ($this->payment_method) {
+            self::PAYMENT_METHOD_MOMO,
+            self::PAYMENT_METHOD_MOMO_ATM,
+            self::PAYMENT_METHOD_MOMO_CC => 'momo',
+            self::PAYMENT_METHOD_BANK_TRANSFER => 'bank_transfer',
+            self::PAYMENT_METHOD_INTERNATIONAL_TRANSFER => 'international_transfer',
+            default => $this->payment_method ?: 'other',
+        };
     }
 
     public function scopeVisibleInOrderHistory(Builder $query): Builder

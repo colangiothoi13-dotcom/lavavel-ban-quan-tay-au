@@ -79,8 +79,11 @@
             <label>Phương thức thanh toán</label>
             <div class="payment-options">
                 <label><input type="radio" name="payment_method" value="cash" @checked(old('payment_method', 'cash') === 'cash') required> Tiền mặt khi nhận hàng (COD)</label>
-                <label><input type="radio" name="payment_method" value="momo_atm" @checked(old('payment_method') === 'momo_atm')> MoMo nội địa</label>
-                <label><input type="radio" name="payment_method" value="momo_cc" @checked(old('payment_method') === 'momo_cc')> MoMo quốc tế</label>
+                <label><input type="radio" name="payment_method" value="bank_transfer" @checked(old('payment_method') === 'bank_transfer')> Chuyển khoản nội địa</label>
+                <label><input type="radio" name="payment_method" value="international_transfer" @checked(old('payment_method') === 'international_transfer')> Chuyển khoản quốc tế</label>
+                <label><input type="radio" name="payment_method" value="momo" @checked(old('payment_method') === 'momo')> MoMo (Quét mã/Ví)</label>
+                <label><input type="radio" name="payment_method" value="momo_atm" @checked(old('payment_method') === 'momo_atm')> MoMo (Thẻ ATM nội địa)</label>
+                <label><input type="radio" name="payment_method" value="momo_cc" @checked(old('payment_method') === 'momo_cc')> MoMo (Visa/Mastercard/JCB quốc tế)</label>
             </div>
         </section>
 

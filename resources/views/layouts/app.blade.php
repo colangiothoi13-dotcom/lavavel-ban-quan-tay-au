@@ -154,6 +154,7 @@
                 <li><a href="{{ route('products.index') }}" class="{{ Request::is('products*') ? 'active' : '' }}">Sản Phẩm</a></li>
                 <li><a href="{{ route('admin.orders.index') }}" class="{{ Request::is('admin/orders*') ? 'active' : '' }}">Đơn hàng</a></li>
                 <li><a href="{{ route('admin.users.index') }}" class="{{ Request::is('admin/users*') ? 'active' : '' }}">Người dùng</a></li>
+                <li><a href="{{ route('admin.finance.index') }}" class="{{ Request::is('admin/finance*') ? 'active' : '' }}">Tài chính</a></li>
                 <li><a href="{{ route('admin.reports.index') }}" class="{{ Request::is('admin/reports*') ? 'active' : '' }}">Thống kê báo cáo</a></li>
                 <li class="sidebar-account">
                     <a href="{{ route('admin.profile.show') }}" class="{{ Request::is('admin/profile*') ? 'active' : '' }}">Tài khoản</a>
@@ -239,6 +240,13 @@
                     font-size: 24px;
                     box-shadow: 0 12px 25px rgba(37, 99, 235, 0.32);
                     cursor: pointer;
+                }
+                #chat-toggle svg {
+                    display: block;
+                    width: 26px;
+                    height: 26px;
+                    margin: 0 auto;
+                    fill: currentColor;
                 }
                 .admin-chat-badge {
                     position: absolute;
@@ -551,7 +559,11 @@
             </style>
 
             <button id="chat-toggle" type="button" aria-label="Mở hộp chat">
-                💬
+                @if(request()->routeIs('admin.finance.*'))
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4C8.82 4 3 8.93 3 15c0 3.26 1.67 6.17 4.34 8.15L6.2 28l5.59-2.61c1.32.39 2.73.61 4.21.61 7.18 0 13-4.93 13-11S23.18 4 16 4Z"/></svg>
+                @else
+                    💬
+                @endif
                 <span class="admin-chat-badge" data-chat-toggle-unread>0</span>
             </button>
 

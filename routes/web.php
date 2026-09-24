@@ -12,6 +12,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\GHNController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\MomoPaymentController;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
@@ -117,6 +118,9 @@ Route::prefix('admin')->group(function () {
             Route::delete('/orders/{order}', [AdminOrderController::class, 'destroy'])->name('admin.orders.destroy');
             Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');
             Route::get('/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
+            Route::get('/finance', [FinanceController::class, 'index'])->name('admin.finance.index');
+            Route::get('/finance/transactions', [FinanceController::class, 'transactions'])->name('admin.finance.transactions');
+            Route::patch('/finance/orders/{order}/cod-payment', [FinanceController::class, 'updateCodPayment'])->name('admin.finance.cod-payment');
             Route::resource('categories', CategoryController::class);
             Route::resource('products', ProductController::class);
 

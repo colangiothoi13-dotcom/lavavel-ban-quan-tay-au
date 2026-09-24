@@ -6,6 +6,7 @@ use App\Events\OrderStatusChanged;
 use App\Models\Order;
 use App\Services\Orders\AdminOrderBulkActionService;
 use App\Services\Orders\OrderCancellationService;
+use App\Services\Payments\CodPaymentService;
 use App\Support\SimpleXlsx;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class AdminOrderController extends Controller
     public function __construct(
         private readonly OrderCancellationService $cancellationService,
         private readonly AdminOrderBulkActionService $bulkActions,
+        private readonly CodPaymentService $codPaymentService,
     ) {}
 
     public function index(Request $request): View
@@ -238,7 +240,11 @@ class AdminOrderController extends Controller
         }
 
         $paymentStatus = $request->validate(['payment_status' => ['required', 'in:paid,unpaid']])['payment_status'];
-        $order->update(['payment_status' => $paymentStatus]);
+        if ($order->isCashPayment()) {
+            $this->codPaymentService->update($order, $paymentStatus);
+        } else {
+            $order->update(['payment_status' => $paymentStatus]);
+        }
 
         return back()->with('status', 'Đã cập nhật trạng thái thanh toán.');
     }

@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -52,6 +55,47 @@ class RevenueReportTest extends TestCase
         $this->assertStringContainsString('0900000000', $worksheet);
         $this->assertStringContainsString('customWidth="1"', $worksheet);
         $this->assertStringContainsString('r="I1"', $worksheet);
+    }
+
+    public function test_report_exposes_revenue_share_by_category(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $category = Category::query()->create(['name' => 'Quần âu']);
+        $product = Product::query()->create([
+            'category_id' => $category->id,
+            'name' => 'Quần âu công sở',
+            'base_price' => 180000,
+        ]);
+        $variant = ProductVariant::query()->create([
+            'product_id' => $product->id,
+            'color' => 'Đen',
+            'size' => 'M',
+            'stock' => 4,
+            'price' => 180000,
+        ]);
+        $order = $admin->orders()->create([
+            'recipient_name' => 'Khách hàng',
+            'phone' => '0900000000',
+            'address' => 'Hà Nội',
+            'payment_method' => 'cod',
+            'payment_status' => 'paid',
+            'status' => 'completed',
+            'total' => 360000,
+        ]);
+        $order->items()->create([
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => 'Đen - M',
+            'quantity' => 2,
+            'price' => 180000,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.reports.index', ['from' => '2026-01-01', 'to' => '2026-12-31']))
+            ->assertOk()
+            ->assertViewHas('categoryRevenue', function (Collection $categoryRevenue) use ($category): bool {
+                return $categoryRevenue->firstWhere('label', $category->name)['percentage'] === 100.0;
+            });
     }
 
     private function createOrder(

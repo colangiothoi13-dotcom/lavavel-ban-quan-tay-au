@@ -18,9 +18,14 @@ class ReportController extends Controller
     public function index(Request $request): View
     {
         [$from, $to] = $this->dateRange($request);
-        $orders = $this->reportableOrders($from, $to)->with('items')->oldest('created_at')->get();
+        $orders = $this->reportableOrders($from, $to)
+            ->with(['items.variant.product.category'])
+            ->oldest('created_at')
+            ->get();
         $dailyRevenue = $this->dailyRevenue($orders, $from, $to);
         $soldProducts = $this->soldProducts($orders);
+        $categoryRevenue = $this->categoryRevenue($orders);
+        $paymentBreakdown = $this->paymentBreakdown($orders);
 
         return view('admin.reports.index', [
             'from' => $from->toDateString(),
@@ -32,6 +37,8 @@ class ReportController extends Controller
             'totalOrders' => $orders->count(),
             'totalProducts' => $orders->sum(fn (Order $order) => $order->items->sum('quantity')),
             'soldProducts' => $soldProducts,
+            'categoryRevenue' => $categoryRevenue,
+            'paymentBreakdown' => $paymentBreakdown,
         ]);
     }
 
@@ -122,5 +129,59 @@ class ReportController extends Controller
                 'stock' => (int) ($variant?->stock ?? 0),
             ];
         })->sortBy([['product', 'asc'], ['variant', 'asc']])->values();
+    }
+
+    /** @return Collection<int, array{label: string, total: float, percentage: float, color: string}> */
+    private function categoryRevenue(Collection $orders): Collection
+    {
+        $totals = collect();
+
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                $category = $item->variant?->product?->category?->name ?: 'Chưa phân loại';
+                $totals[$category] = (float) ($totals->get($category, 0) + ((float) $item->price * (int) $item->quantity));
+            }
+        }
+
+        $grandTotal = (float) $totals->sum();
+        $colors = ['#f4511e', '#2563eb', '#16a34a', '#9333ea', '#d97706', '#0891b2', '#db2777'];
+
+        $sortedTotals = $totals->sortDesc();
+
+        return $sortedTotals
+            ->values()
+            ->map(function (float $total, int $index) use ($grandTotal, $colors, $sortedTotals): array {
+                return [
+                    'label' => (string) $sortedTotals->keys()->get($index, 'Chưa phân loại'),
+                    'total' => $total,
+                    'percentage' => $grandTotal > 0 ? round(($total / $grandTotal) * 100, 2) : 0,
+                    'color' => $colors[$index % count($colors)],
+                ];
+            });
+    }
+
+    /** @return Collection<int, array{label: string, total: float, count: int, percentage: float, color: string}> */
+    private function paymentBreakdown(Collection $orders): Collection
+    {
+        $totals = $orders->groupBy(fn (Order $order): string => $order->payment_label)
+            ->map(fn (Collection $paymentOrders, string $label): array => [
+                'label' => $label,
+                'total' => (float) $paymentOrders->sum('total'),
+                'count' => $paymentOrders->count(),
+            ])
+            ->sortByDesc('total')
+            ->values();
+        $grandTotal = (float) $totals->sum('total');
+        $colors = ['#0f766e', '#7c3aed', '#ea580c', '#1d4ed8', '#be123c'];
+
+        return $totals->map(function (array $payment, int $index) use ($grandTotal, $colors): array {
+            return [
+                'label' => $payment['label'],
+                'total' => (float) $payment['total'],
+                'count' => (int) $payment['count'],
+                'percentage' => $grandTotal > 0 ? round(($payment['total'] / $grandTotal) * 100, 2) : 0,
+                'color' => $colors[$index % count($colors)],
+            ];
+        });
     }
 }
