@@ -10,6 +10,28 @@ class AdminUserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_guest_chat_identities_are_not_shown_as_registered_users(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $guest = User::factory()->create([
+            'name' => 'Khách chat',
+            'email' => 'guest-test-token@guest.invalid',
+            'role' => 'user',
+        ]);
+        $registeredUser = User::factory()->create([
+            'name' => 'Người dùng thật',
+            'email' => 'registered@example.com',
+            'role' => 'user',
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/users');
+
+        $response->assertOk()
+            ->assertSee($registeredUser->email)
+            ->assertDontSee($guest->email)
+            ->assertDontSee($guest->name);
+    }
+
     public function test_admin_can_only_update_user_role_and_not_other_profile_fields(): void
     {
         $admin = User::factory()->create([

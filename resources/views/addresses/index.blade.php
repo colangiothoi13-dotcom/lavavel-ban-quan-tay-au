@@ -31,8 +31,8 @@
             <label>Quận/Huyện<select id="district" disabled required><option value="">Chọn Tỉnh/Thành phố trước</option></select></label>
             <label class="full">Phường/Xã<select id="ward" disabled required><option value="">Chọn Quận/Huyện trước</option></select></label>
             <label class="full">Địa chỉ cụ thể
-                <input id="street-address" name="street_address" value="{{ old('street_address') }}" placeholder="Chọn Phường/Xã trước" disabled required autocomplete="street-address" aria-autocomplete="list" aria-controls="address-suggestions">
-                <ul class="address-suggestions" id="address-suggestions" role="listbox"></ul>
+                <input id="street-address" name="street_address" value="{{ old('street_address') }}" placeholder="Chọn Phường/Xã trước" disabled required autocomplete="street-address" aria-autocomplete="list" aria-controls="address-suggestions" data-address-suggestions="address-suggestions">
+                <ul class="address-suggestions" id="address-suggestions" role="listbox" data-address-suggestions-list="address-suggestions"></ul>
                 <small id="address-hint">Chọn Phường/Xã rồi nhập số nhà, tên đường hoặc địa điểm.</small>
             </label>
             <div class="address-map-wrap full"><div id="address-map" aria-label="Bản đồ khu vực giao hàng"></div><p id="map-hint">Chọn Phường/Xã để hiển thị khu vực trên bản đồ.</p></div>

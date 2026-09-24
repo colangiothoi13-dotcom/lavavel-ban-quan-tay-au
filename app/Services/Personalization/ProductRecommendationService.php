@@ -116,11 +116,11 @@ class ProductRecommendationService
             $score = 0;
             $sourceProduct = $source['product'];
 
-            if ($candidate->category_id !== null && $candidate->category_id === $sourceProduct->category_id) {
-                $score += 2 * $source['weight'];
-            }
-
             if ($this->gendersAreCompatible($candidate->gender, $sourceProduct->gender)) {
+                if ($candidate->category_id !== null && $candidate->category_id === $sourceProduct->category_id) {
+                    $score += 2 * $source['weight'];
+                }
+
                 $score += $source['weight'];
             }
 

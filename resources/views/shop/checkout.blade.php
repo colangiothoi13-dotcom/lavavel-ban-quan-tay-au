@@ -60,12 +60,9 @@
         <div style="margin-bottom:24px">
             <label style="display:block;font-weight:600;margin-bottom:10px">Phương thức thanh toán</label>
             <div style="display:flex;gap:12px;flex-wrap:wrap">
-                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="cash" @checked(old('payment_method', 'cash') === 'cash') required> Tiền mặt khi nhận hàng</label>
-                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="bank_transfer" @checked(old('payment_method') === 'bank_transfer')> Chuyển khoản nội địa</label>
-                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="international_transfer" @checked(old('payment_method') === 'international_transfer')> Chuyển khoản quốc tế</label>
-                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="momo" @checked(old('payment_method') === 'momo')> MoMo (Quét mã/Ví)</label>
-                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="momo_atm" @checked(old('payment_method') === 'momo_atm')> MoMo (Thẻ ATM nội địa)</label>
-                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="momo_cc" @checked(old('payment_method') === 'momo_cc')> MoMo (Visa/Mastercard/JCB quốc tế)</label>
+                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="cash" @checked(old('payment_method', 'cash') === 'cash') required> Tiền mặt khi nhận hàng (COD)</label>
+                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="momo_atm" @checked(old('payment_method') === 'momo_atm')> MoMo nội địa</label>
+                <label style="border:1px solid #cbd5e1;border-radius:6px;padding:12px 16px"><input type="radio" name="payment_method" value="momo_cc" @checked(old('payment_method') === 'momo_cc')> MoMo quốc tế</label>
             </div>
         </div>
 

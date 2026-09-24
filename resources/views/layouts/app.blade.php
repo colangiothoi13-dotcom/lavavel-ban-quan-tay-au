@@ -46,9 +46,35 @@
         .user-sidebar .sidebar-menu li a:hover, .user-sidebar .sidebar-menu li a.active { background-color: rgba(255,255,255,.06); color: #ffffff; font-weight: bold; border-left: 4px solid #d1e189; padding-left: 12px; }
         .user-sidebar .sidebar-menu .menu-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; min-width: 18px; font-size: 16px; }
         .user-sidebar .sidebar-menu .nav-label { white-space: nowrap; overflow: hidden; transition: opacity .2s ease, width .2s ease; }
-        .user-shell--collapsed .user-sidebar .sidebar-menu li a { justify-content: center; padding-left: 10px; padding-right: 10px; }
+        .user-shell--collapsed .user-sidebar .sidebar-menu li a { justify-content: center; padding-left: 10px; padding-right: 10px; position: relative; }
         .user-shell--collapsed .user-sidebar .sidebar-menu li a:hover, .user-shell--collapsed .user-sidebar .sidebar-menu li a.active { padding-left: 10px; }
         .user-shell--collapsed .user-sidebar .sidebar-menu .nav-label { width: 0; opacity: 0; }
+        .user-shell--collapsed .user-sidebar .sidebar-menu li a::after {
+            content: attr(data-label);
+            position: absolute;
+            left: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 7px 10px;
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.96);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+            transition: opacity .16s ease, visibility .16s ease;
+            z-index: 30;
+        }
+        .user-shell--collapsed .user-sidebar .sidebar-menu li a:hover::after,
+        .user-shell--collapsed .user-sidebar .sidebar-menu li a:focus-visible::after {
+            opacity: 1;
+            visibility: visible;
+        }
         .user-sidebar .sidebar-account { margin-top: auto; border-top: 1px solid rgba(255,255,255,.12); }
 
         .user-menu-backdrop { position: fixed; inset: 0; z-index: 1000; border: 0; background: rgba(15, 23, 42, .55); opacity: 0; visibility: hidden; cursor: pointer; transition: opacity .25s ease, visibility .25s ease; }
@@ -881,15 +907,15 @@
                     <span class="sidebar-logo-text">TRANG KHÁCH HÀNG</span>
                 </div>
                 <ul class="sidebar-menu">
-                    <li><a href="{{ route('shop.home') }}"><span class="menu-icon">🏡</span><span class="nav-label">Trang chủ</span></a></li>
-                    <li><a href="{{ url('gio-hang') }}" class="{{ Request::is('gio-hang*') ? 'active' : '' }}"><span class="menu-icon">📦</span><span class="nav-label">Giỏ hàng</span></a></li>
-                    <li><a href="{{ route('user.addresses.index') }}" class="{{ Request::is('user/addresses*') ? 'active' : '' }}"><span class="menu-icon">📍</span><span class="nav-label">Địa chỉ</span></a></li>
-                    <li><a href="{{ route('user.orders.index', ['status' => 'completed']) }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}"><span class="menu-icon">🛍️</span><span class="nav-label">Đơn mua</span></a></li>
-                    <li><a href="{{ route('shop.wishlist.index') }}" class="{{ Request::is('user/yeu-thich*') ? 'active' : '' }}"><span class="menu-icon">❤️</span><span class="nav-label">Yêu thích</span></a></li>
-                    <li><a href="{{ route('shop.history.index') }}" class="{{ Request::is('user/lich-su-duyet*') ? 'active' : '' }}"><span class="menu-icon">🕘</span><span class="nav-label">Lịch sử duyệt</span></a></li>
-                    <li><a href="{{ route('shop.recommendations') }}" class="{{ Request::is('user/goi-y-ca-nhan*') ? 'active' : '' }}"><span class="menu-icon">✨</span><span class="nav-label">Gợi ý cho bạn</span></a></li>
+                    <li><a href="{{ route('shop.home') }}" title="Trang chủ" data-label="Trang chủ" aria-label="Trang chủ"><span class="menu-icon">🏡</span><span class="nav-label">Trang chủ</span></a></li>
+                    <li><a href="{{ url('gio-hang') }}" class="{{ Request::is('gio-hang*') ? 'active' : '' }}" title="Giỏ hàng" data-label="Giỏ hàng" aria-label="Giỏ hàng"><span class="menu-icon">📦</span><span class="nav-label">Giỏ hàng</span></a></li>
+                    <li><a href="{{ route('user.addresses.index') }}" class="{{ Request::is('user/addresses*') ? 'active' : '' }}" title="Địa chỉ" data-label="Địa chỉ" aria-label="Địa chỉ"><span class="menu-icon">📍</span><span class="nav-label">Địa chỉ</span></a></li>
+                    <li><a href="{{ route('user.orders.index', ['status' => 'completed']) }}" class="{{ Request::is('user/don-mua*') ? 'active' : '' }}" title="Đơn mua" data-label="Đơn mua" aria-label="Đơn mua"><span class="menu-icon">🛍️</span><span class="nav-label">Đơn mua</span></a></li>
+                    <li><a href="{{ route('shop.wishlist.index') }}" class="{{ Request::is('user/yeu-thich*') ? 'active' : '' }}" title="Yêu thích" data-label="Yêu thích" aria-label="Yêu thích"><span class="menu-icon">❤️</span><span class="nav-label">Yêu thích</span></a></li>
+                    <li><a href="{{ route('shop.history.index') }}" class="{{ Request::is('user/lich-su-duyet*') ? 'active' : '' }}" title="Lịch sử duyệt" data-label="Lịch sử duyệt" aria-label="Lịch sử duyệt"><span class="menu-icon">🕘</span><span class="nav-label">Lịch sử duyệt</span></a></li>
+                    <li><a href="{{ route('shop.recommendations') }}" class="{{ Request::is('user/goi-y-ca-nhan*') ? 'active' : '' }}" title="Gợi ý cho bạn" data-label="Gợi ý cho bạn" aria-label="Gợi ý cho bạn"><span class="menu-icon">✨</span><span class="nav-label">Gợi ý cho bạn</span></a></li>
                     <li class="sidebar-account">
-                        <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}"><span class="menu-icon">👤</span><span class="nav-label">Hồ sơ</span></a>
+                        <a href="{{ route('user.profile.show') }}" class="{{ Request::is('user/profile*') ? 'active' : '' }}" title="Hồ sơ" data-label="Hồ sơ" aria-label="Hồ sơ"><span class="menu-icon">👤</span><span class="nav-label">Hồ sơ</span></a>
                     </li>
                 </ul>
             </nav>
@@ -901,11 +927,11 @@
                     <a href="{{ route('shop.home') }}" class="logo">QUẦN TÂY ÂU</a>
 
                     <div class="search-wrapper">
-                        <form class="hero-search" method="GET" action="{{ route('shop.home') }}" autocomplete="off">
+                        <form class="hero-search" method="GET" action="{{ route('shop.home') }}" autocomplete="off" data-suggestion-route="shop.products.suggestions">
                             @if(request('gender')) <input type="hidden" name="gender" value="{{ request('gender') }}"> @endif
                             @if(request('size')) <input type="hidden" name="size" value="{{ request('size') }}"> @endif
                             @if(request('category_id')) <input type="hidden" name="category_id" value="{{ request('category_id') }}"> @endif
-                            <input id="product-search-input" type="text" name="keyword" placeholder="Nhập tên mẫu quần âu bạn tìm..." value="{{ request('keyword') }}" aria-label="Tìm kiếm sản phẩm" aria-controls="product-search-suggestions" aria-expanded="false">
+                            <input id="product-search-input" type="text" name="keyword" placeholder="Nhập tên mẫu quần âu bạn tìm..." value="{{ request('keyword') }}" aria-label="Tìm kiếm sản phẩm" aria-controls="product-search-suggestions" aria-expanded="false" data-route-name="shop.products.suggestions">
                             <button type="submit">Tìm kiếm</button>
                         </form>
                         <div id="product-search-suggestions" class="search-suggestions" role="listbox"></div>

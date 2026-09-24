@@ -13,7 +13,11 @@ class AdminUserController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = User::query()->orderByDesc('created_at');
+        // Guest chat identities are technical records used to keep a visitor's
+        // conversation. They are managed from the chat inbox, not this list.
+        $query = User::query()
+            ->where('email', 'not like', 'guest-%@guest.invalid')
+            ->orderByDesc('created_at');
 
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;

@@ -47,22 +47,35 @@ class AddressController
 
         $filteredResults = $results;
 
-        if ($ward !== '' || $district !== '') {
+        if ($ward !== '' || $district !== '' || $province !== '') {
             $wardShort = $this->getShortName($ward);
             $districtShort = $this->getShortName($district);
+            $provinceShort = $this->getShortName($province);
 
-            $filteredResults = collect($results)
-                ->filter(function (array $result) use ($wardShort, $districtShort): bool {
-                    $label = $this->normalizeSearchText($result['label'] ?? '');
-                    
-                    $matchWard = $wardShort !== '' && str_contains($label, $wardShort);
-                    $matchDistrict = $districtShort !== '' && str_contains($label, $districtShort);
+            $wardMatches = collect($results)->filter(function (array $result) use ($wardShort): bool {
+                if ($wardShort === '') {
+                    return false;
+                }
 
-                    // We keep the result if it matches either ward or district
-                    return $matchWard || $matchDistrict;
-                })
-                ->values()
-                ->all();
+                return str_contains($this->normalizeSearchText($result['label'] ?? ''), $wardShort);
+            })->values()->all();
+
+            $districtMatches = collect($results)->filter(function (array $result) use ($districtShort): bool {
+                if ($districtShort === '') {
+                    return false;
+                }
+
+                return str_contains($this->normalizeSearchText($result['label'] ?? ''), $districtShort);
+            })->values()->all();
+
+            if ($wardMatches !== [] || $districtMatches !== []) {
+                $filteredResults = $wardMatches !== [] ? $wardMatches : $districtMatches;
+            } elseif ($provinceShort !== '') {
+                $filteredResults = collect($results)
+                    ->filter(fn (array $result): bool => str_contains($this->normalizeSearchText($result['label'] ?? ''), $provinceShort))
+                    ->values()
+                    ->all();
+            }
         }
 
         // Always prepend a synthesized result for exactly what the user typed (e.g. house number)
